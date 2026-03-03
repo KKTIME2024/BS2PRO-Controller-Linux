@@ -48,7 +48,7 @@ func (r *Reader) Read() types.TemperatureData {
 	// 如果桥接程序失败，使用备用方法
 	r.logger.Warn("桥接程序读取温度失败: %s, 使用备用方法", bridgeTemp.Error)
 	temp.BridgeOk = false
-	temp.BridgeMsg = "CPU/GPU 温度获取失败，可能被安全软件拦截，请将 TempBridge.exe 加入白名单或重新安装后再试。"
+	temp.BridgeMsg = "CPU/GPU 温度读取失败，请检查Pawnio是否安装成功，或升级最新版。"
 
 	// 读取CPU温度
 	temp.CPUTemp = r.readCPUTemperature()

@@ -3,7 +3,7 @@ import { types } from '../../../wailsjs/go/models';
 import { configService } from '../services/config-service';
 import { deviceService, type DeviceStatusPayload } from '../services/device-service';
 
-const BRIDGE_WARNING_MESSAGE = 'CPU/GPU 温度读取失败，可能被 Windows Defender 拦截，请将 TempBridge.exe 加入白名单或尝试重新安装后再试。';
+const BRIDGE_WARNING_MESSAGE = 'CPU/GPU 温度读取失败，请检查Pawnio是否安装成功，或升级最新版。';
 
 type ActiveTab = 'status' | 'curve' | 'control';
 
