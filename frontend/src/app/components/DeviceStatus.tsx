@@ -8,7 +8,6 @@ import {
   Cpu,
   Zap,
   RotateCw,
-  Monitor,
   Wifi,
   Fan,
   Gpu,
@@ -153,7 +152,9 @@ export default function DeviceStatus({
     }
   };
 
-  const deviceModel = fanData?.maxGear === '超频' ? 'BS2 PRO' : 'BS2';
+  const isProModel = fanData?.maxGear === '超频' || !fanData;
+  const deviceModel = isProModel ? 'BS2 PRO' : 'BS2';
+  const deviceImageSrc = isProModel ? '/bs2pro.png' : '/bs2.png';
   const modeTitle = config.autoControl ? '智能控制' : config.customSpeedEnabled ? '固定转速' : '手动策略';
   const modeDesc = config.autoControl
     ? '根据实时温度自动调节转速'
@@ -170,14 +171,14 @@ export default function DeviceStatus({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
-              className={clsx(
-                'flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ring-1',
-                isConnected
-                  ? 'bg-primary/10 text-primary ring-primary/30'
-                  : 'bg-muted text-muted-foreground ring-border',
-              )}
+              className="flex h-12 w-16 items-center justify-center overflow-hidden"
             >
-              <Monitor className="h-6 w-6" />
+              <img
+                src={deviceImageSrc}
+                alt={`${deviceModel} device`}
+                className="h-full w-full object-contain"
+                draggable={false}
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
