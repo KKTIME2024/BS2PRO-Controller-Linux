@@ -380,7 +380,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         variant={buttonVariantMap[variant]}
         size={buttonSizeMap[size]}
         disabled={disabled || loading}
-        className={className}
+        className={clsx('cursor-pointer disabled:cursor-not-allowed', className)}
         {...props}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon ? <span>{icon}</span> : null}

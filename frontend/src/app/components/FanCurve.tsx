@@ -77,7 +77,7 @@ const ConfigTooltipLabel = memo(function ConfigTooltipLabel({ label, description
       <span>{label}</span>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" className="inline-flex items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground" aria-label={`${label}说明`}>
+          <button type="button" className="inline-flex cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground" aria-label={`${label}说明`}>
             <Info className="h-3.5 w-3.5" />
           </button>
         </TooltipTrigger>
@@ -499,7 +499,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
                         type="button"
                         onClick={() => handleGearCardSelect(preset.gear)}
                         className={clsx(
-                          'rounded-xl border px-3 py-2.5 text-left transition-colors',
+                          'cursor-pointer rounded-xl border px-3 py-2.5 text-left transition-colors',
                           isActiveGear ? `${preset.borderClass} ${preset.bgClass}` : 'border-border/70 bg-background/40 hover:bg-muted/35',
                         )}
                       >
@@ -522,7 +522,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
                             key={point.key}
                             type="button"
                             onClick={() => handleManualPointSelect(index)}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center"
+                            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center"
                             title={`${point.gear} ${point.level} · ${point.rpm} RPM`}
                           >
                             <span

@@ -465,7 +465,7 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
                         key={preset.name}
                         type="button"
                         onClick={() => setLightStripConfig(types.LightStripConfig.createFrom({ ...lightStripConfig, colors: preset.colors }))}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+                        className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
                       >
                         {preset.name}
                       </button>
@@ -787,7 +787,7 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
         <Collapsible open={debugPanelOpen} onOpenChange={setDebugPanelOpen}>
           <div className="rounded-2xl border border-border bg-card overflow-hidden">
             <CollapsibleTrigger asChild>
-              <button type="button" className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-muted/40">
+              <button type="button" className="flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
                   <Bug className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-semibold text-foreground">调试面板</span>

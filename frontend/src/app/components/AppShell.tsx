@@ -169,7 +169,7 @@ export default function AppShell({
                       key={tab.id}
                       role="tab"
                       onClick={() => handleTabChange(tab.id)}
-                      className={`relative flex items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[14px] font-medium transition-colors duration-200 ${
+                      className={`relative flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[14px] font-medium transition-colors duration-200 ${
                         isActive
                           ? 'text-foreground'
                           : 'text-muted-foreground hover:bg-background/55 hover:text-foreground/90'
@@ -223,7 +223,7 @@ export default function AppShell({
                   type="button"
                   aria-label="关闭告警"
                   onClick={onDismissBridgeWarning}
-                  className="rounded p-0.5 transition hover:bg-amber-200/60 dark:hover:bg-amber-800/40"
+                  className="cursor-pointer rounded p-0.5 transition hover:bg-amber-200/60 dark:hover:bg-amber-800/40"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
