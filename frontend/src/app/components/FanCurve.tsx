@@ -8,12 +8,15 @@ import {
   Check,
   Info,
   Spline,
+  TriangleAlert,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { apiService } from '../services/api';
 import { types } from '../../../wailsjs/go/models';
 import { ToggleSwitch, Select, Button, Badge, Slider } from './ui/index';
 import clsx from 'clsx';
+
+const LOW_RPM_WARNING_DATE_KEY = 'fanCurveLowRpmWarningDate';
 
 interface FanCurveProps {
   config: types.AppConfig;
@@ -116,7 +119,7 @@ const DraggablePoint = memo(function DraggablePoint({
    ─── Main FanCurve Component ───
    ═══════════════════════════════════════════════════════════ */
 
-const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, fanData, temperature }: FanCurveProps) {
+const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, temperature }: FanCurveProps) {
   const [localCurve, setLocalCurve] = useState<types.FanCurvePoint[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -125,10 +128,21 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
   const [trendPreviewMode, setTrendPreviewMode] = useState<'auto' | 'heat' | 'cool'>('auto');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [showLowRpmWarning, setShowLowRpmWarning] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
   const previousMaxTempRef = useRef<number | null>(null);
+  const lowRpmWarnedInDragRef = useRef(false);
   const chartBoundsRef = useRef<{ top: number; bottom: number; left: number; right: number; yMin: number; yMax: number } | null>(null);
   const [rpmRange, setRpmRange] = useState({ min: 0, max: 4000, ticks: [0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000] });
+
+  const shouldShowLowRpmWarningToday = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    const today = new Date().toISOString().slice(0, 10);
+    const lastShownDate = window.localStorage.getItem(LOW_RPM_WARNING_DATE_KEY);
+    if (lastShownDate === today) return false;
+    window.localStorage.setItem(LOW_RPM_WARNING_DATE_KEY, today);
+    return true;
+  }, []);
 
   const temperatureRange = useMemo(() => ({ min: 30, max: 95, ticks: Array.from({ length: 14 }, (_, i) => 30 + i * 5) }), []);
 
@@ -143,12 +157,12 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
     const normalizeRateOffsets = (source?: number[]) => Array.isArray(source) ? [...source.slice(0, 7), ...defaultRateOffsets].slice(0, 7) : defaultRateOffsets;
 
     if (!existing) {
-      return { enabled: true, learning: true, targetTemp: 68, aggressiveness: 5, hysteresis: 2, minRpmChange: 50, rampUpLimit: 220, rampDownLimit: 160, learnRate: 4, learnWindow: 6, learnDelay: 2, overheatWeight: 8, rpmDeltaWeight: 5, noiseWeight: 4, trendGain: 5, maxLearnOffset: 600, learnedOffsets: defaultOffsets, learnedOffsetsHeat: defaultOffsets, learnedOffsetsCool: defaultOffsets, learnedRateHeat: defaultRateOffsets, learnedRateCool: defaultRateOffsets };
+      return { enabled: true, learning: config.debugMode, targetTemp: 68, aggressiveness: 5, hysteresis: 2, minRpmChange: 50, rampUpLimit: 220, rampDownLimit: 160, learnRate: 4, learnWindow: 6, learnDelay: 2, overheatWeight: 8, rpmDeltaWeight: 5, noiseWeight: 4, trendGain: 5, maxLearnOffset: 600, learnedOffsets: defaultOffsets, learnedOffsetsHeat: defaultOffsets, learnedOffsetsCool: defaultOffsets, learnedRateHeat: defaultRateOffsets, learnedRateCool: defaultRateOffsets };
     }
 
     return {
       ...existing,
-      learning: true,
+      learning: config.debugMode,
       learnWindow: existing.learnWindow ?? 6, learnDelay: existing.learnDelay ?? 2,
       overheatWeight: existing.overheatWeight ?? 8, rpmDeltaWeight: existing.rpmDeltaWeight ?? 5,
       noiseWeight: existing.noiseWeight ?? 4, trendGain: existing.trendGain ?? 5,
@@ -158,7 +172,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
       learnedRateHeat: normalizeRateOffsets(existing.learnedRateHeat),
       learnedRateCool: normalizeRateOffsets(existing.learnedRateCool),
     };
-  }, [config.fanCurve, config.smartControl, localCurve.length]);
+  }, [config.debugMode, config.fanCurve, config.smartControl, localCurve.length]);
 
   const effectiveTrendDelta = useMemo(() => {
     if (trendPreviewMode === 'heat') return 1;
@@ -234,14 +248,8 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
     if (!isInitialized && config.fanCurve && config.fanCurve.length > 0) {
       setLocalCurve([...config.fanCurve]);
       setIsInitialized(true);
-      if (fanData?.maxGear) {
-        let maxRpm = 4000;
-        switch (fanData.maxGear) { case '标准': maxRpm = 2760; break; case '强劲': maxRpm = 3300; break; case '超频': maxRpm = 4000; break; }
-        const step = 500;
-        setRpmRange({ min: 0, max: maxRpm, ticks: Array.from({ length: Math.floor(maxRpm / step) + 1 }, (_, i) => i * step) });
-      }
     }
-  }, [config.fanCurve, fanData?.maxGear, isInitialized]);
+  }, [config.fanCurve, isInitialized]);
 
   /* ── Chart data ── */
 
@@ -257,24 +265,31 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
 
     return localCurve.map((point, index) => {
       const baseOffset = trendOffsets[index] ?? blendedOffsets[index] ?? 0;
-      const offset = baseOffset + trendRateBias;
+      const offset = config.debugMode ? baseOffset + trendRateBias : 0;
       return { temperature: point.temperature, rpm: point.rpm, coupledRpm: Math.max(rpmRange.min, Math.min(rpmRange.max, point.rpm + offset)), index };
     });
-  }, [localCurve, smartControl.learnedOffsets, smartControl.learnedOffsetsHeat, smartControl.learnedOffsetsCool, smartControl.learnedRateHeat, smartControl.learnedRateCool, effectiveTrendDelta, rpmRange.max, rpmRange.min]);
+  }, [config.debugMode, localCurve, smartControl.learnedOffsets, smartControl.learnedOffsetsHeat, smartControl.learnedOffsetsCool, smartControl.learnedRateHeat, smartControl.learnedRateCool, effectiveTrendDelta, rpmRange.max, rpmRange.min]);
 
-  const showCoupledCurve = config.autoControl && smartControl.enabled;
+  const showCoupledCurve = config.autoControl && config.debugMode && smartControl.enabled;
 
   /* ── Point update + drag ── */
 
   const updatePoint = useCallback((index: number, newRpm: number) => {
     const clampedRpm = Math.max(rpmRange.min, Math.min(rpmRange.max, Math.round(newRpm / 50) * 50));
+    if (clampedRpm < 1000 && !lowRpmWarnedInDragRef.current) {
+      lowRpmWarnedInDragRef.current = true;
+      if (shouldShowLowRpmWarningToday()) {
+        setShowLowRpmWarning(true);
+      }
+    }
     setLocalCurve((prev) => { if (prev[index]?.rpm === clampedRpm) return prev; const c = [...prev]; c[index] = { ...c[index], rpm: clampedRpm }; return c; });
     setHasUnsavedChanges(true);
-  }, [rpmRange]);
+  }, [rpmRange, shouldShowLowRpmWarningToday]);
 
   const handleDragStart = useCallback((index: number) => {
     setDragIndex(index);
     setIsInteracting(true);
+    lowRpmWarnedInDragRef.current = false;
     if (chartRef.current) {
       const chartArea = chartRef.current.querySelector('.recharts-cartesian-grid');
       if (chartArea) {
@@ -332,7 +347,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
 
   const updateSmartControl = useCallback(async (patch: Partial<typeof smartControl>) => {
     try {
-      const merged = { ...smartControl, ...patch, learning: true };
+      const merged = { ...smartControl, ...patch, learning: config.debugMode };
       onConfigChange(types.AppConfig.createFrom({ ...config, smartControl: merged }));
     } catch { /* noop */ }
   }, [config, onConfigChange, smartControl]);
@@ -415,7 +430,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
 
         {/* ── Smart learning (when auto on) ── */}
         <AnimatePresence>
-          {config.autoControl && isConnected && (
+          {config.autoControl && isConnected && config.debugMode && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -490,10 +505,6 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
                       ))}
                     </div>
                   </>
-                )}
-
-                {!config.debugMode && (
-                  <p className="text-xs text-muted-foreground">高级学习参数可在「设置 → 调试面板」中微调。</p>
                 )}
 
                 <div className="flex justify-end">
@@ -605,6 +616,42 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, f
             <Button variant="primary" size="sm" onClick={saveCurve} disabled={!hasUnsavedChanges} loading={isSaving} icon={<Check className="h-3.5 w-3.5" />}>保存</Button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {showLowRpmWarning && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
+              >
+                <div className="mb-4 flex justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15">
+                    <TriangleAlert className="h-8 w-8 text-amber-600" />
+                  </div>
+                </div>
+
+                <h3 className="mb-3 text-center text-lg font-bold text-foreground">注意</h3>
+                <p className="mb-6 rounded-xl border border-amber-300/40 bg-amber-500/10 p-4 text-sm leading-relaxed text-foreground">
+                  低于1000转非飞智官方设计最低转速标准，由此引发的任何问题需要由用户自行承担！
+                </p>
+
+                <div className="flex justify-end">
+                  <Button variant="secondary" size="sm" onClick={() => setShowLowRpmWarning(false)}>
+                    我已知悉
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </TooltipProvider>
   );

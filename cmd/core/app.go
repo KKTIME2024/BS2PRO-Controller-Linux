@@ -136,7 +136,7 @@ func (a *CoreApp) Start() error {
 			a.logError("保存灯带默认配置失败: %v", err)
 		}
 	}
-	if normalizedSmart, changed := smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve); changed {
+	if normalizedSmart, changed := smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve, cfg.DebugMode); changed {
 		cfg.SmartControl = normalizedSmart
 		a.configManager.Set(cfg)
 		if err := a.configManager.Save(); err != nil {
@@ -769,7 +769,7 @@ func (a *CoreApp) UpdateConfig(cfg types.AppConfig) error {
 
 	oldCfg := a.configManager.Get()
 	cfg.LightStrip, _ = normalizeLightStripConfig(cfg.LightStrip)
-	cfg.SmartControl, _ = smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve)
+	cfg.SmartControl, _ = smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve, cfg.DebugMode)
 
 	if cfg.AutoControl && !a.monitoringTemp && a.isConnected {
 		a.safeGo("startTemperatureMonitoring@UpdateConfig", func() {
@@ -793,7 +793,7 @@ func (a *CoreApp) SetFanCurve(curve []types.FanCurvePoint) error {
 
 	cfg := a.configManager.Get()
 	cfg.FanCurve = curve
-	cfg.SmartControl, _ = smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve)
+	cfg.SmartControl, _ = smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve, cfg.DebugMode)
 	return a.configManager.Update(cfg)
 }
 
@@ -1075,6 +1075,7 @@ func (a *CoreApp) SetDebugMode(enabled bool) error {
 
 	cfg := a.configManager.Get()
 	cfg.DebugMode = enabled
+	cfg.SmartControl, _ = smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve, enabled)
 	a.debugMode = enabled
 
 	if a.logger != nil {
@@ -1144,7 +1145,7 @@ func (a *CoreApp) startTemperatureMonitoring() {
 			}
 
 			cfg := a.configManager.Get()
-			smartCfg, smartChanged := smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve)
+			smartCfg, smartChanged := smartcontrol.NormalizeConfig(cfg.SmartControl, cfg.FanCurve, cfg.DebugMode)
 			if smartChanged {
 				cfg.SmartControl = smartCfg
 				a.configManager.Set(cfg)
@@ -1184,7 +1185,7 @@ func (a *CoreApp) startTemperatureMonitoring() {
 				targetRPM := baseRPM
 				prevTargetRPM := lastTargetRPM
 
-				if smartCfg.Enabled {
+				if cfg.DebugMode && smartCfg.Enabled {
 					targetRPM = smartcontrol.CalculateTargetRPM(avgTemp, lastAvgTemp, cfg.FanCurve, smartCfg)
 				}
 
@@ -1202,7 +1203,7 @@ func (a *CoreApp) startTemperatureMonitoring() {
 					lastTargetRPM = targetRPM
 				}
 
-				if smartCfg.Enabled {
+				if cfg.DebugMode && smartCfg.Enabled {
 					updatedHeatOffsets, updatedCoolOffsets, updatedRateHeat, updatedRateCool, changed := smartcontrol.LearnCurveOffsets(
 						avgTemp,
 						lastAvgTemp,

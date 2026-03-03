@@ -3,12 +3,12 @@ package smartcontrol
 import "github.com/TIANLI0/BS2PRO-Controller/internal/types"
 
 // NormalizeConfig 归一化智能控温配置
-func NormalizeConfig(cfg types.SmartControlConfig, curve []types.FanCurvePoint) (types.SmartControlConfig, bool) {
+func NormalizeConfig(cfg types.SmartControlConfig, curve []types.FanCurvePoint, debugMode bool) (types.SmartControlConfig, bool) {
 	defaults := types.GetDefaultSmartControlConfig(curve)
 	changed := false
 
-	if !cfg.Learning {
-		cfg.Learning = true
+	if cfg.Learning != debugMode {
+		cfg.Learning = debugMode
 		changed = true
 	}
 
