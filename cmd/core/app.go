@@ -202,7 +202,13 @@ func (a *CoreApp) Start() error {
 
 	// 尝试连接设备
 	a.safeGo("delayedConnectDevice", func() {
-		time.Sleep(1 * time.Second)
+		if a.isAutoStartLaunch {
+			// 自启动时等待更长时间，让设备固件有足够时间完成初始化
+			a.logInfo("自启动模式：等待设备初始化（3秒）")
+			time.Sleep(3 * time.Second)
+		} else {
+			time.Sleep(1 * time.Second)
+		}
 		a.ConnectDevice()
 	})
 
@@ -1107,12 +1113,9 @@ func (a *CoreApp) startTemperatureMonitoring() {
 
 	a.monitoringTemp = true
 
-	if a.isConnected {
-		if err := a.deviceManager.EnterAutoMode(); err != nil {
-			a.logError("进入自动模式失败: %v", err)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	// 注意：不在此处立即调用 EnterAutoMode，因为在启动时温度数据（桥接程序）可能尚未就绪。
+	// 如果在温度读取成功之前切换到软件控制模式，设备将不会收到转速指令，导致风扇停转。
+	// EnterAutoMode 和转速设置会在首次成功读取温度后，由 SetFanSpeed 内部统一完成。
 
 	cfg := a.configManager.Get()
 	updateInterval := time.Duration(cfg.TempUpdateRate) * time.Second
