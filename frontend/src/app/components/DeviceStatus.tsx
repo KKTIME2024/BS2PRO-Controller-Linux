@@ -26,6 +26,7 @@ import clsx from 'clsx';
 
 interface DeviceStatusProps {
   isConnected: boolean;
+  deviceProductId: string | null;
   fanData: types.FanData | null;
   temperature: types.TemperatureData | null;
   config: types.AppConfig;
@@ -124,6 +125,7 @@ const FanRpmDisplay = memo(function FanRpmDisplay({
 
 export default function DeviceStatus({
   isConnected,
+  deviceProductId,
   fanData,
   temperature,
   config,
@@ -152,9 +154,11 @@ export default function DeviceStatus({
     }
   };
 
-  const isProModel = fanData?.maxGear === '超频' || !fanData;
-  const deviceModel = isProModel ? 'BS2 PRO' : 'BS2';
-  const deviceImageSrc = isProModel ? '/bs2pro.png' : '/bs2.png';
+  const normalizedProductId = deviceProductId?.trim().toUpperCase() ?? '';
+  const isProModel = normalizedProductId === '0X1002';
+  const isBs2Model = normalizedProductId === '0X1001';
+  const deviceModel = isProModel ? 'BS2 PRO' : isBs2Model ? 'BS2' : '未知设备';
+  const deviceImageSrc = isBs2Model ? '/bs2.png' : '/bs2pro.png';
   const modeTitle = config.autoControl ? '智能控制' : config.customSpeedEnabled ? '固定转速' : '手动策略';
   const modeDesc = config.autoControl
     ? '根据实时温度自动调节转速'

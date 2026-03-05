@@ -746,11 +746,27 @@ func (a *CoreApp) GetDeviceStatus() map[string]any {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 
+	productID := a.deviceManager.GetProductID()
+	productIDHex := ""
+	if productID != 0 {
+		productIDHex = fmt.Sprintf("0x%04X", productID)
+	}
+
+	model := ""
+	switch productID {
+	case device.ProductID1:
+		model = "BS2PRO"
+	case device.ProductID2:
+		model = "BS2"
+	}
+
 	return map[string]any{
 		"connected":   a.isConnected,
 		"monitoring":  a.monitoringTemp,
 		"currentData": a.deviceManager.GetCurrentFanData(),
 		"temperature": a.currentTemp,
+		"productId":   productIDHex,
+		"model":       model,
 	}
 }
 
