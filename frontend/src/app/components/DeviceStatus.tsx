@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { types } from '../../../wailsjs/go/models';
 import { apiService } from '../services/api';
-import { getManualGearHighLevelRpm } from '../lib/manualGearPresets';
+import { getReportedMaxRpm } from '../lib/manualGearPresets';
 import { ToggleSwitch, Button } from './ui/index';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import clsx from 'clsx';
@@ -166,7 +166,18 @@ export default function DeviceStatus({
       ? `当前固定为 ${config.customSpeedRPM || fanData?.currentRpm || '--'} RPM`
       : '可在设置页调整模式与参数';
   const fanSpinDuration = getFanSpinDuration(fanData?.currentRpm);
-  const maxGearHighLevelRpm = getManualGearHighLevelRpm(fanData?.maxGear);
+  const maxRpmInfo = getReportedMaxRpm(fanData?.gearSettings, fanData?.maxGear);
+  const maxGearHighLevelRpm = maxRpmInfo.rpm;
+  const maxRpmHint =
+    maxGearHighLevelRpm === 4000
+      ? '当前已解锁超频上限，最高可达 4000 RPM。'
+      : maxGearHighLevelRpm === 3300
+        ? '当前最高为强劲档，最高可达 3300 RPM，使用PD 27W充电头以解锁上限。'
+        : maxGearHighLevelRpm === 2760
+          ? '当前最高为标准档，最高可达 2760 RPM，使用PD 27W充电头以解锁上限。'
+          : maxRpmInfo.codeHex
+            ? `设备上报了未映射的最高挡位编码：${maxRpmInfo.codeHex}`
+            : '等待设备上报最高转速能力。';
 
   return (
     <div className="space-y-4">
@@ -354,11 +365,15 @@ export default function DeviceStatus({
                         <CircleHelp className="h-3.5 w-3.5" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>使用 PD 27W 充电器可以解锁 4000 RPM 转速。</TooltipContent>
+                    <TooltipContent>{maxRpmHint}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <div className="text-base font-semibold">{maxGearHighLevelRpm ? `${maxGearHighLevelRpm} RPM` : '--'}</div>
+              <div className="text-base font-semibold">
+                {maxGearHighLevelRpm
+                  ? `${maxGearHighLevelRpm} RPM`
+                  : maxRpmInfo.codeHex || '--'}
+              </div>
             </div>
 
             <div className="rounded-xl border border-border/70 bg-background/50 p-3.5 backdrop-blur-lg">
