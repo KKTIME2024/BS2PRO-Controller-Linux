@@ -23,12 +23,14 @@ type Manager struct {
 	cmd      *exec.Cmd
 	conn     net.Conn
 	pipeName string
+	ownsCmd  bool
 	mutex    sync.Mutex
 	logger   types.Logger
 }
 
 const (
 	bridgeCommandTimeout = 3 * time.Second
+	bridgePipeName       = "BS2PRO_TempBridge"
 )
 
 // NewManager 创建新的桥接程序管理器
@@ -43,8 +45,8 @@ func (m *Manager) EnsureRunning() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	// 检查是否已经有连接
-	if m.conn != nil && m.cmd != nil {
+	// 已有连接时优先探活；共享桥接场景下 m.cmd 可以为空。
+	if m.conn != nil {
 		_, err := m.sendCommandUnsafe("Ping", "")
 		if err == nil {
 			return nil // 连接正常
@@ -53,8 +55,8 @@ func (m *Manager) EnsureRunning() error {
 		m.stopUnsafe()
 	}
 
-	// 状态不一致（仅有进程或仅有连接）时进行自愈清理，避免后续阻塞
-	if m.conn != nil || m.cmd != nil {
+	// 状态不一致（仅有进程）时进行自愈清理，避免后续阻塞
+	if m.cmd != nil {
 		m.logger.Warn("检测到桥接程序状态不一致，执行清理后重启")
 		m.stopUnsafe()
 	}
@@ -64,6 +66,14 @@ func (m *Manager) EnsureRunning() error {
 
 // start 启动桥接程序
 func (m *Manager) start() error {
+	if conn, err := m.connectToPipe(bridgePipeName, 500*time.Millisecond); err == nil {
+		m.conn = conn
+		m.pipeName = bridgePipeName
+		m.ownsCmd = false
+		m.logger.Info("复用已存在的桥接程序，管道名称: %s", bridgePipeName)
+		return nil
+	}
+
 	exeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		return fmt.Errorf("获取程序目录失败: %v", err)
@@ -91,7 +101,7 @@ func (m *Manager) start() error {
 	m.logger.Info("找到桥接程序: %s", bridgePath)
 
 	// 启动桥接程序
-	cmd := exec.Command(bridgePath)
+	cmd := exec.Command(bridgePath, "--pipe")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 	// 获取输出管道来读取管道名称
@@ -126,6 +136,7 @@ func (m *Manager) start() error {
 	scanner := bufio.NewScanner(stdout)
 	fmt.Printf("等待桥接程序输出管道名称...\n")
 	var pipeName string
+	var attachMode bool
 	timeout := time.NewTimer(5 * time.Second)
 	defer timeout.Stop()
 
@@ -135,7 +146,11 @@ func (m *Manager) start() error {
 			line := scanner.Text()
 			fmt.Printf("桥接程序输出: %s\n", line)
 			if after, ok := strings.CutPrefix(line, "PIPE:"); ok {
-				pipeName = after
+				parts := strings.SplitN(after, "|", 2)
+				pipeName = strings.TrimSpace(parts[0])
+				if len(parts) == 2 && strings.EqualFold(strings.TrimSpace(parts[1]), "ATTACH") {
+					attachMode = true
+				}
 			} else if after0, ok0 := strings.CutPrefix(line, "ERROR:"); ok0 {
 				m.logger.Error("桥接程序启动错误: %s", after0)
 			}
@@ -172,9 +187,18 @@ func (m *Manager) start() error {
 		return fmt.Errorf("连接管道失败: %v", err)
 	}
 
-	m.cmd = cmd
 	m.conn = conn
 	m.pipeName = pipeName
+	m.ownsCmd = !attachMode
+	if attachMode {
+		go func() {
+			_ = cmd.Wait()
+		}()
+		m.logger.Info("桥接程序已存在，附着到共享实例，管道名称: %s", pipeName)
+		return nil
+	}
+
+	m.cmd = cmd
 
 	m.logger.Info("桥接程序启动成功，管道名称: %s", pipeName)
 	return nil
@@ -280,17 +304,25 @@ func (m *Manager) Stop() {
 
 // stopUnsafe 停止桥接程序（不加锁）
 func (m *Manager) stopUnsafe() {
+	ownedCmd := m.cmd
+	ownsCmd := m.ownsCmd
+	m.cmd = nil
+	m.ownsCmd = false
+	m.pipeName = ""
+
 	if m.conn != nil {
-		// 发送退出命令
-		m.sendCommandUnsafe("Exit", "")
+		if ownsCmd {
+			// 仅关闭当前实例自己启动的桥接进程，避免误杀共享桥接
+			m.sendCommandUnsafe("Exit", "")
+		}
 		m.closeConnUnsafe()
 	}
 
-	if m.cmd != nil && m.cmd.Process != nil {
+	if ownsCmd && ownedCmd != nil && ownedCmd.Process != nil {
 		// 给程序一些时间来正常退出
 		done := make(chan error, 1)
 		go func() {
-			done <- m.cmd.Wait()
+			done <- ownedCmd.Wait()
 		}()
 
 		select {
@@ -298,13 +330,9 @@ func (m *Manager) stopUnsafe() {
 			// 程序正常退出
 		case <-time.After(3 * time.Second):
 			// 强制杀死进程
-			m.cmd.Process.Kill()
+			ownedCmd.Process.Kill()
 		}
-
-		m.cmd = nil
 	}
-
-	m.pipeName = ""
 }
 
 // GetTemperature 从桥接程序读取温度

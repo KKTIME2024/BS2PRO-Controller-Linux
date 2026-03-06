@@ -43,6 +43,26 @@ dotnet publish TempBridge.csproj -c Release --self-contained false -o ../../buil
 3. 桥接程序以JSON格式输出温度数据
 4. Go程序解析JSON数据并使用
 
+## 直接启动排查
+
+在命令行里直接运行 `TempBridge.exe` 时，程序会进入诊断模式，而不是命名管道模式：
+
+```bash
+cd bridge/TempBridge/bin/Release/net472
+TempBridge.exe
+```
+
+诊断模式会直接在控制台输出：
+
+- CPU/GPU/MAX 温度
+- 当前是否读取成功
+- 错误信息
+- 已发现的温度传感器名称和读数
+
+如果需要强制使用原有的管道模式，可传入 `--pipe` 参数。
+
+`--pipe` 模式现在会使用固定命名管道和全局单实例互斥；如果系统里已经有一个 TempBridge 正在监听，新进程不会再启动第二个监听实例，而是直接附着到现有实例。
+
 ## 输出格式
 
 ```json

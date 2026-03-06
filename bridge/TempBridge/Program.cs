@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Pipes;
+using System.Linq;
 using System.Threading;
 using Newtonsoft.Json;
 using LibreHardwareMonitor.Hardware;
@@ -56,34 +57,206 @@ namespace TempBridge
 
     class Program
     {
+        private const string PipeName = "BS2PRO_TempBridge";
+        private const string MutexName = @"Global\BS2PRO_TempBridge_Singleton";
         private static Computer computer;
         private static bool running = true;
-        private static readonly string PIPE_NAME = "TempBridge_" + System.Diagnostics.Process.GetCurrentProcess().Id;
         private static readonly object lockObject = new object();
+        private static Mutex singleInstanceMutex;
 
         static void Main(string[] args)
         {
             try
             {
+                if (ShouldRunDiagnosticMode(args))
+                {
+                    RunConsoleDiagnostics();
+                    return;
+                }
+
                 // 初始化硬件监控
-                InitializeHardwareMonitor();
+                using (var instanceHandle = AcquirePipeInstance())
+                {
+                    if (instanceHandle == null)
+                    {
+                        Console.WriteLine($"PIPE:{PipeName}|ATTACH");
+                        Console.Out.Flush();
+                        return;
+                    }
 
-                // 输出管道名称，让主程序知道如何连接
-                Console.WriteLine($"PIPE:{PIPE_NAME}");
-                Console.Out.Flush();
+                    InitializeHardwareMonitor();
 
-                // 启动管道服务器
-                StartPipeServer();
+                    // 输出管道名称，让主程序知道如何连接
+                    Console.WriteLine($"PIPE:{PipeName}|OWNER");
+                    Console.Out.Flush();
+
+                    // 启动管道服务器
+                    StartPipeServer();
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR:{ex.Message}");
+                if (ShouldRunDiagnosticMode(args))
+                {
+                    Console.Error.WriteLine("TempBridge 启动失败");
+                    Console.Error.WriteLine($"错误: {ex.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"ERROR:{ex.Message}");
+                }
                 Environment.Exit(1);
             }
             finally
             {
                 computer?.Close();
+                if (singleInstanceMutex != null)
+                {
+                    singleInstanceMutex.Dispose();
+                    singleInstanceMutex = null;
+                }
             }
+        }
+
+        static IDisposable AcquirePipeInstance()
+        {
+            bool createdNew;
+            singleInstanceMutex = new Mutex(false, MutexName, out createdNew);
+
+            bool acquired = false;
+            try
+            {
+                acquired = singleInstanceMutex.WaitOne(0, false);
+            }
+            catch (AbandonedMutexException)
+            {
+                acquired = true;
+            }
+
+            if (!acquired)
+            {
+                return null;
+            }
+
+            return new MutexHandle(singleInstanceMutex);
+        }
+
+        static bool ShouldRunDiagnosticMode(string[] args)
+        {
+            if (HasArg(args, "--pipe"))
+            {
+                return false;
+            }
+
+            if (HasArg(args, "--diag") || HasArg(args, "--diagnose"))
+            {
+                return true;
+            }
+
+            return Environment.UserInteractive && !Console.IsOutputRedirected;
+        }
+
+        static bool HasArg(string[] args, string expected)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return false;
+            }
+
+            return args.Any(arg => string.Equals(arg, expected, StringComparison.OrdinalIgnoreCase));
+        }
+
+        static void RunConsoleDiagnostics()
+        {
+            Console.WriteLine("TempBridge 诊断模式");
+            Console.WriteLine($"时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            Console.WriteLine();
+
+            InitializeHardwareMonitor();
+
+            TemperatureData data = GetTemperatureData();
+            PrintTemperatureSummary(data);
+            Console.WriteLine();
+            PrintHardwareSnapshot();
+
+            if (!data.Success)
+            {
+                Environment.Exit(1);
+            }
+        }
+
+        static void PrintTemperatureSummary(TemperatureData data)
+        {
+            Console.WriteLine("温度结果");
+            Console.WriteLine($"CPU: {FormatTemperature(data.CpuTemp)}");
+            Console.WriteLine($"GPU: {FormatTemperature(data.GpuTemp)}");
+            Console.WriteLine($"MAX: {FormatTemperature(data.MaxTemp)}");
+            Console.WriteLine($"Success: {data.Success}");
+
+            if (!string.IsNullOrEmpty(data.Error))
+            {
+                Console.WriteLine($"Error: {data.Error}");
+            }
+        }
+
+        static string FormatTemperature(int value)
+        {
+            return value > 0 ? value + "°C" : "N/A";
+        }
+
+        static void PrintHardwareSnapshot()
+        {
+            Console.WriteLine("温度传感器快照");
+
+            bool foundAny = false;
+            foreach (IHardware hardware in computer.Hardware)
+            {
+                foundAny |= PrintHardwareSnapshotRecursive(hardware, 0);
+            }
+
+            if (!foundAny)
+            {
+                Console.WriteLine("- 未发现可用的温度传感器");
+            }
+        }
+
+        static bool PrintHardwareSnapshotRecursive(IHardware hardware, int indentLevel)
+        {
+            bool wroteLine = false;
+            string indent = new string(' ', indentLevel * 2);
+
+            foreach (ISensor sensor in hardware.Sensors)
+            {
+                if (sensor.SensorType != SensorType.Temperature)
+                {
+                    continue;
+                }
+
+                string valueText = sensor.Value.HasValue
+                    ? sensor.Value.Value.ToString("F1") + "°C"
+                    : "N/A";
+                Console.WriteLine(
+                    string.Format(
+                        "{0}- [{1}] {2} / {3}: {4}",
+                        indent,
+                        hardware.HardwareType,
+                        hardware.Name,
+                        sensor.Name,
+                        valueText
+                    )
+                );
+                wroteLine = true;
+            }
+
+            foreach (IHardware subHardware in hardware.SubHardware)
+            {
+                if (PrintHardwareSnapshotRecursive(subHardware, indentLevel + 1))
+                {
+                    wroteLine = true;
+                }
+            }
+
+            return wroteLine;
         }
 
         static void InitializeHardwareMonitor()
@@ -123,7 +296,7 @@ namespace TempBridge
             {
                 try
                 {
-                    using (var pipeServer = new NamedPipeServerStream(PIPE_NAME, PipeDirection.InOut))
+                    using (var pipeServer = new NamedPipeServerStream(PipeName, PipeDirection.InOut))
                     {
                         // 等待客户端连接
                         pipeServer.WaitForConnection();
@@ -357,6 +530,32 @@ namespace TempBridge
             }
 
             return false;
+        }
+
+        sealed class MutexHandle : IDisposable
+        {
+            private Mutex mutex;
+
+            public MutexHandle(Mutex mutex)
+            {
+                this.mutex = mutex;
+            }
+
+            public void Dispose()
+            {
+                if (mutex == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    mutex.ReleaseMutex();
+                }
+                catch (ApplicationException)
+                {
+                }
+            }
         }
     }
 }
