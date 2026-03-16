@@ -9,7 +9,7 @@ import (
 func CalculateTargetRPM(avgTemp, lastAvgTemp int, curve []types.FanCurvePoint, cfg types.SmartControlConfig) int {
 	effectiveCurve := make([]types.FanCurvePoint, len(curve))
 	activeOffsets := selectOffsetsForTrend(avgTemp-lastAvgTemp, cfg)
-	leftMinRPM, rightMaxRPM := getCurveEdgeRPMBounds(curve)
+	leftMinRPM, rightMaxRPM := GetCurveRPMBounds(curve)
 	for i, point := range curve {
 		offset := 0
 		if i < len(activeOffsets) {
@@ -56,7 +56,10 @@ func CalculateTargetRPM(avgTemp, lastAvgTemp int, curve []types.FanCurvePoint, c
 		targetRPM += 320 + cfg.OverheatWeight*15
 	}
 
-	return clampInt(targetRPM, 0, 4000)
+	if len(curve) == 0 {
+		return clampInt(targetRPM, 0, 4000)
+	}
+	return clampInt(targetRPM, leftMinRPM, rightMaxRPM)
 }
 
 func selectOffsetsForTrend(tempDelta int, cfg types.SmartControlConfig) []int {

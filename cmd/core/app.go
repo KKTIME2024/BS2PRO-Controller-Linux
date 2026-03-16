@@ -1431,8 +1431,9 @@ func (a *CoreApp) startTemperatureMonitoring() {
 	sampleCount := max(cfg.TempSampleCount, 1)
 	tempSamples := make([]int, 0, sampleCount)
 	recentAvgTemps := make([]int, 0, 24)
+	recentControlTemps := make([]int, 0, 24)
 	initialTemp := a.tempReader.Read()
-	lastAvgTemp := initialTemp.MaxTemp
+	lastControlTemp := initialTemp.MaxTemp
 	lastTargetRPM := -1
 	learningDirty := false
 	lastLearningSave := time.Now()
@@ -1491,16 +1492,31 @@ func (a *CoreApp) startTemperatureMonitoring() {
 					recentAvgTemps = recentAvgTemps[len(recentAvgTemps)-maxHistory:]
 				}
 
-				baseRPM := temperature.CalculateTargetRPM(avgTemp, cfg.FanCurve)
+				controlTemp, spikeSuppressed := smartcontrol.FilterTransientSpike(avgTemp, recentAvgTemps, smartCfg.TargetTemp, smartCfg.Hysteresis)
+				recentControlTemps = append(recentControlTemps, controlTemp)
+				if len(recentControlTemps) > maxHistory {
+					recentControlTemps = recentControlTemps[len(recentControlTemps)-maxHistory:]
+				}
+
+				curveMinRPM, curveMaxRPM := smartcontrol.GetCurveRPMBounds(cfg.FanCurve)
+
+				baseRPM := temperature.CalculateTargetRPM(controlTemp, cfg.FanCurve)
 				targetRPM := baseRPM
 				prevTargetRPM := lastTargetRPM
 
 				if cfg.DebugMode && smartCfg.Enabled {
-					targetRPM = smartcontrol.CalculateTargetRPM(avgTemp, lastAvgTemp, cfg.FanCurve, smartCfg)
+					targetRPM = smartcontrol.CalculateTargetRPM(controlTemp, lastControlTemp, cfg.FanCurve, smartCfg)
+				}
+
+				if targetRPM > 0 {
+					targetRPM = min(max(targetRPM, curveMinRPM), curveMaxRPM)
 				}
 
 				if prevTargetRPM >= 0 {
 					targetRPM = smartcontrol.ApplyRampLimit(targetRPM, prevTargetRPM, smartCfg.RampUpLimit, smartCfg.RampDownLimit)
+					if targetRPM > 0 {
+						targetRPM = min(max(targetRPM, curveMinRPM), curveMaxRPM)
+					}
 				}
 
 				deltaRPM := targetRPM - prevTargetRPM
@@ -1513,13 +1529,13 @@ func (a *CoreApp) startTemperatureMonitoring() {
 					lastTargetRPM = targetRPM
 				}
 
-				if cfg.DebugMode && smartCfg.Enabled {
+				if cfg.DebugMode && smartCfg.Enabled && !spikeSuppressed {
 					updatedHeatOffsets, updatedCoolOffsets, updatedRateHeat, updatedRateCool, changed := smartcontrol.LearnCurveOffsets(
-						avgTemp,
-						lastAvgTemp,
+						controlTemp,
+						lastControlTemp,
 						targetRPM,
 						prevTargetRPM,
-						recentAvgTemps,
+						recentControlTemps,
 						cfg.FanCurve,
 						smartCfg,
 					)
@@ -1548,10 +1564,10 @@ func (a *CoreApp) startTemperatureMonitoring() {
 				}
 
 				if baseRPM > 0 {
-					a.logDebug("智能控温: 温度=%d°C 平均=%d°C 基础=%dRPM 目标=%dRPM", temp.MaxTemp, avgTemp, baseRPM, targetRPM)
+					a.logDebug("智能控温: 温度=%d°C 平均=%d°C 控制温度=%d°C 基础=%dRPM 目标=%dRPM", temp.MaxTemp, avgTemp, controlTemp, baseRPM, targetRPM)
 				}
 
-				lastAvgTemp = avgTemp
+				lastControlTemp = controlTemp
 			}
 		}
 	}

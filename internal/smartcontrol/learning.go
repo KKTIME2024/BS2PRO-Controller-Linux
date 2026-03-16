@@ -39,7 +39,7 @@ func LearnCurveOffsets(avgTemp, lastAvgTemp, targetRPM, lastTargetRPM int, recen
 	learningWindowTemps := recentAvgTemps[windowStart:windowEnd]
 	if !isStableLearningWindow(learningWindowTemps, cfg.Hysteresis+1) {
 		overheatMargin := cfg.TargetTemp + cfg.Hysteresis + 3
-		if avgTemp < overheatMargin {
+		if avgTemp < overheatMargin || !isSustainedAboveThreshold(recentAvgTemps, overheatMargin, 2) {
 			return heatOffsets, coolOffsets, rateHeat, rateCool, false
 		}
 	}

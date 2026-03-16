@@ -3,15 +3,26 @@ package smartcontrol
 import "github.com/TIANLI0/BS2PRO-Controller/internal/types"
 
 func getCurveEdgeRPMBounds(curve []types.FanCurvePoint) (int, int) {
+	return GetCurveRPMBounds(curve)
+}
+
+// GetCurveRPMBounds 返回用户曲线的最小/最大 RPM 边界。
+func GetCurveRPMBounds(curve []types.FanCurvePoint) (int, int) {
 	if len(curve) == 0 {
 		return 0, 4000
 	}
-	left := curve[0].RPM
-	right := curve[len(curve)-1].RPM
-	if left > right {
-		left, right = right, left
+	minRPM := curve[0].RPM
+	maxRPM := curve[0].RPM
+	for i := 1; i < len(curve); i++ {
+		rpm := curve[i].RPM
+		if rpm < minRPM {
+			minRPM = rpm
+		}
+		if rpm > maxRPM {
+			maxRPM = rpm
+		}
 	}
-	return left, right
+	return minRPM, maxRPM
 }
 
 func clampOffsetForPoint(offset, baseRPM, leftMinRPM, rightMaxRPM, maxLearnOffset int) int {
@@ -93,6 +104,54 @@ func absInt(value int) int {
 		return -value
 	}
 	return value
+}
+
+func medianOfThree(a, b, c int) int {
+	if a > b {
+		a, b = b, a
+	}
+	if b > c {
+		b, c = c, b
+	}
+	if a > b {
+		a, b = b, a
+	}
+	return b
+}
+
+// FilterTransientSpike 在控制环节抑制 1 个采样点的短时温度尖峰。
+func FilterTransientSpike(currentTemp int, recentTemps []int, targetTemp, hysteresis int) (int, bool) {
+	if len(recentTemps) < 3 {
+		return currentTemp, false
+	}
+
+	// 高温区优先保守，避免误抑制真实过热。
+	if currentTemp >= targetTemp+10 {
+		return currentTemp, false
+	}
+
+	last3 := recentTemps[len(recentTemps)-3:]
+	baseline := medianOfThree(last3[0], last3[1], last3[2])
+	spikeBand := max(2, hysteresis+2)
+	if currentTemp-baseline >= spikeBand {
+		return baseline, true
+	}
+
+	return currentTemp, false
+}
+
+// isSustainedAboveThreshold 检查最近的温度读数是否持续高于指定阈值至少 minCount 次。
+func isSustainedAboveThreshold(temps []int, threshold, minCount int) bool {
+	if minCount <= 0 || len(temps) < minCount {
+		return false
+	}
+	start := len(temps) - minCount
+	for i := start; i < len(temps); i++ {
+		if temps[i] < threshold {
+			return false
+		}
+	}
+	return true
 }
 
 func enforceNonDecreasingRPM(curve []types.FanCurvePoint) {
