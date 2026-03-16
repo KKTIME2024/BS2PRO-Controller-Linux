@@ -19,6 +19,7 @@ import {
   Flame,
   Clock3,
   BarChart3,
+  Spline,
   Sparkles,
   Rocket,
   X,
@@ -28,6 +29,7 @@ import { types } from '../../../wailsjs/go/models';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { toast } from 'sonner';
 import { DebugInfo } from '../types/app';
+import FanCurveProfileSelect from './FanCurveProfileSelect';
 import { ToggleSwitch, Button, Select, ScrollArea, Slider } from './ui/index';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import clsx from 'clsx';
@@ -39,6 +41,8 @@ interface ControlPanelProps {
   fanData: types.FanData | null;
   temperature: types.TemperatureData | null;
 }
+
+type CurveProfile = { id: string; name: string; curve: types.FanCurvePoint[] };
 
 /* ── Helpers ── */
 
@@ -288,6 +292,10 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
     normalizeHotkeyForDisplay((config as any).curveProfileToggleHotkey, DEFAULT_CURVE_PROFILE_HOTKEY)
   );
   const [recordingTarget, setRecordingTarget] = useState<'manual' | 'auto' | 'curve' | null>(null);
+  const [curveProfiles, setCurveProfiles] = useState<CurveProfile[]>([]);
+  const [curveProfileLoading, setCurveProfileLoading] = useState(false);
+
+  const activeCurveProfileId = ((config as any).activeFanCurveProfileId || '') as string;
 
   const setLoading = (key: string, value: boolean) => setLoadingStates((prev) => ({ ...prev, [key]: value }));
 
@@ -435,9 +443,36 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
     } catch { /* noop */ }
   }, [config, onConfigChange]);
 
+  const loadCurveProfiles = useCallback(async () => {
+    try {
+      const payload = await apiService.getFanCurveProfiles();
+      const profiles = Array.isArray(payload?.profiles) ? payload.profiles : [];
+      setCurveProfiles(profiles);
+    } catch {
+      setCurveProfiles([]);
+    }
+  }, []);
+
+  const handleCurveProfileChange = useCallback(async (profileId: string) => {
+    if (!profileId || profileId === activeCurveProfileId) return;
+    try {
+      setCurveProfileLoading(true);
+      await apiService.setActiveFanCurveProfile(profileId);
+      const latest = await apiService.getConfig();
+      onConfigChange(types.AppConfig.createFrom(latest));
+      await loadCurveProfiles();
+      toast.success('温控曲线已切换');
+    } catch (e) {
+      toast.error(`切换曲线失败: ${e}`);
+    } finally {
+      setCurveProfileLoading(false);
+    }
+  }, [activeCurveProfileId, loadCurveProfiles, onConfigChange]);
+
   useEffect(() => { const i = setInterval(() => { apiService.updateGuiResponseTime().catch(() => {}); }, 10000); return () => clearInterval(i); }, []);
   useEffect(() => { apiService.getAppVersion().then((v) => setAppVersion(v || '')).catch(() => setAppVersion('')); }, []);
   useEffect(() => { checkLatestRelease(); }, [checkLatestRelease]);
+  useEffect(() => { loadCurveProfiles(); }, [loadCurveProfiles]);
   useEffect(() => { setLightStripConfig(normalizeLightStripConfig(config)); }, [config]);
   useEffect(() => {
     setManualHotkeyInput(normalizeHotkeyForDisplay((config as any).manualGearToggleHotkey, DEFAULT_MANUAL_HOTKEY));
@@ -738,6 +773,19 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
               </motion.div>
             )}
           </AnimatePresence>
+
+          <SettingRow
+            icon={<Spline className="h-4 w-4" />}
+            title="曲线方案"
+            description="在设置页直接切换风扇温控曲线，避免来回切页。"
+          >
+            <FanCurveProfileSelect
+              profiles={curveProfiles}
+              activeProfileId={activeCurveProfileId}
+              onChange={handleCurveProfileChange}
+              loading={curveProfileLoading}
+            />
+          </SettingRow>
 
           {/* Custom speed */}
           <div className="px-5 py-4">

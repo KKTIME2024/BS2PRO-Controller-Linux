@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { apiService } from '../services/api';
 import { types } from '../../../wailsjs/go/models';
 import { MANUAL_GEAR_PRESETS } from '../lib/manualGearPresets';
+import FanCurveProfileSelect from './FanCurveProfileSelect';
 import { toast } from 'sonner';
 import { ToggleSwitch, Button, Badge, Slider } from './ui/index';
 import clsx from 'clsx';
@@ -134,6 +135,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
   const [curveProfiles, setCurveProfiles] = useState<CurveProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState('');
   const [profileNameInput, setProfileNameInput] = useState('');
+  const [isProfileNameComposing, setIsProfileNameComposing] = useState(false);
   const [profileOpLoading, setProfileOpLoading] = useState(false);
   const [exportCode, setExportCode] = useState('');
   const [importCode, setImportCode] = useState('');
@@ -408,6 +410,27 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
     return runes.slice(0, 6).join('');
   }, []);
 
+  const trimProfileNameToLimit = useCallback((value: string) => {
+    return Array.from(value).slice(0, 6).join('');
+  }, []);
+
+  const handleProfileNameInputChange = useCallback((value: string, composing: boolean) => {
+    if (composing || isProfileNameComposing) {
+      setProfileNameInput(value);
+      return;
+    }
+    setProfileNameInput(trimProfileNameToLimit(value));
+  }, [isProfileNameComposing, trimProfileNameToLimit]);
+
+  const handleProfileNameCompositionStart = useCallback(() => {
+    setIsProfileNameComposing(true);
+  }, []);
+
+  const handleProfileNameCompositionEnd = useCallback((value: string) => {
+    setIsProfileNameComposing(false);
+    setProfileNameInput(trimProfileNameToLimit(value));
+  }, [trimProfileNameToLimit]);
+
   const switchProfile = useCallback(async (id: string) => {
     try {
       setProfileOpLoading(true);
@@ -440,19 +463,23 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
   }, [activeProfile?.curve, activeProfile?.name, activeProfileId, getSafeProfileName, loadCurveProfiles, localCurve, profileNameInput, syncConfigFromBackend]);
 
   const createNewProfile = useCallback(async () => {
-    const safeName = getSafeProfileName(profileNameInput, '新曲线');
+    const rawName = (profileNameInput || '').trim();
+    const activeName = (activeProfile?.name || '').trim();
+    const shouldUseDefaultNewName = !rawName || rawName === activeName;
+    const safeName = shouldUseDefaultNewName ? '新曲线' : getSafeProfileName(rawName, '新曲线');
     try {
       setProfileOpLoading(true);
       await apiService.saveFanCurveProfile('', safeName, localCurve, true);
       await loadCurveProfiles();
       await syncConfigFromBackend();
+      setProfileNameInput('');
       toast.success('已另存为新方案');
     } catch (e) {
       toast.error(`另存失败: ${e}`);
     } finally {
       setProfileOpLoading(false);
     }
-  }, [getSafeProfileName, loadCurveProfiles, localCurve, profileNameInput, syncConfigFromBackend]);
+  }, [activeProfile?.name, getSafeProfileName, loadCurveProfiles, localCurve, profileNameInput, syncConfigFromBackend]);
 
   const removeActiveProfile = useCallback(async () => {
     if (!activeProfileId) return;
@@ -669,6 +696,12 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <FanCurveProfileSelect
+                profiles={curveProfiles}
+                activeProfileId={activeProfileId}
+                onChange={switchProfile}
+                loading={profileOpLoading}
+              />
               <ToggleSwitch enabled={config.autoControl} onChange={handleAutoControlChange} label="智能变频" size="sm" color="blue" />
             </div>
           </div>
@@ -791,9 +824,7 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">曲线方案</span>
-              <Badge variant="info" size="sm">命名最多6字</Badge>
             </div>
-            <span className="text-xs text-muted-foreground">点击下方方案名直接切换</span>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -817,7 +848,9 @@ const FanCurve = memo(function FanCurve({ config, onConfigChange, isConnected, t
             <div className="min-w-[220px] flex-1">
               <Input
                 value={profileNameInput}
-                onChange={(e) => setProfileNameInput(Array.from(e.target.value).slice(0, 6).join(''))}
+                onChange={(e) => handleProfileNameInputChange(e.target.value, Boolean((e.nativeEvent as InputEvent).isComposing))}
+                onCompositionStart={handleProfileNameCompositionStart}
+                onCompositionEnd={(e) => handleProfileNameCompositionEnd(e.currentTarget.value)}
                 placeholder="当前方案命名（最多6字）"
                 className="h-10"
               />

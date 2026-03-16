@@ -134,6 +134,7 @@ export default function DeviceStatus({
   onConfigChange,
 }: DeviceStatusProps) {
   const [bridgeWarningReady, setBridgeWarningReady] = useState(false);
+  const [activeCurveProfileName, setActiveCurveProfileName] = useState('');
   const hasBridgeWarning = isConnected && temperature?.bridgeOk === false;
 
   useEffect(() => {
@@ -144,6 +145,31 @@ export default function DeviceStatus({
     const timer = window.setTimeout(() => setBridgeWarningReady(true), 2000);
     return () => window.clearTimeout(timer);
   }, [hasBridgeWarning]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadActiveCurveProfile = async () => {
+      try {
+        const payload = await apiService.getFanCurveProfiles();
+        const profiles = Array.isArray(payload?.profiles) ? payload.profiles : [];
+        const preferredActiveId = ((config as any).activeFanCurveProfileId || payload?.activeId || profiles[0]?.id || '') as string;
+        const activeProfile = profiles.find((p) => p.id === preferredActiveId) ?? profiles[0];
+        if (!cancelled) {
+          setActiveCurveProfileName(activeProfile?.name || '');
+        }
+      } catch {
+        if (!cancelled) {
+          setActiveCurveProfileName('');
+        }
+      }
+    };
+
+    loadActiveCurveProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, (config as any).activeFanCurveProfileId]);
 
   const handleAutoControlChange = async (enabled: boolean) => {
     try {
@@ -165,6 +191,7 @@ export default function DeviceStatus({
     : config.customSpeedEnabled
       ? `当前固定为 ${config.customSpeedRPM || fanData?.currentRpm || '--'} RPM`
       : '可在设置页调整模式与参数';
+  const modeDisplayTitle = activeCurveProfileName ? `${modeTitle}（${activeCurveProfileName}）` : modeTitle;
   const fanSpinDuration = getFanSpinDuration(fanData?.currentRpm);
   const maxRpmInfo = getReportedMaxRpm(fanData?.gearSettings, fanData?.maxGear);
   const maxGearHighLevelRpm = maxRpmInfo.rpm;
@@ -344,7 +371,7 @@ export default function DeviceStatus({
                 控制模式
               </div>
               <div className={clsx('text-base font-semibold', config.autoControl ? 'text-primary' : 'text-amber-600 dark:text-amber-400')}>
-                {modeTitle}
+                {modeDisplayTitle}
               </div>
             </div>
 

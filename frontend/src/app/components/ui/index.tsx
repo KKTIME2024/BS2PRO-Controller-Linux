@@ -80,6 +80,8 @@ interface SelectProps<T = string> {
   placeholder?: string;
   label?: string;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  triggerClassName?: string;
 }
 
 const selectTriggerSize: Record<'sm' | 'md' | 'lg', string> = {
@@ -96,11 +98,13 @@ export function Select<T extends string | number>({
   placeholder = '请选择',
   label,
   size = 'md',
+  className,
+  triggerClassName,
 }: SelectProps<T>) {
   const isNumberValue = typeof value === 'number';
 
   return (
-    <div className="min-w-[120px]">
+    <div className={clsx('min-w-[120px]', className)}>
       {label && <Label className="mb-1 block">{label}</Label>}
       <ShadcnSelect
         value={String(value)}
@@ -108,7 +112,7 @@ export function Select<T extends string | number>({
         disabled={disabled}
       >
         <SelectTrigger
-          className={clsx(selectTriggerSize[size], '[&>span]:truncate')}
+          className={clsx(selectTriggerSize[size], '[&>span]:truncate', triggerClassName)}
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
