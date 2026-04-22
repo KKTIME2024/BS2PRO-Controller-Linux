@@ -199,11 +199,11 @@ func parseModifier(part string) (hotkeylib.Modifier, bool) {
 	case "CTRL", "CONTROL":
 		return hotkeylib.ModCtrl, true
 	case "ALT":
-		return hotkeylib.ModAlt, true
+		return hotkeylib.Mod1, true // Linux X11 中 Alt 是 Mod1
 	case "SHIFT":
 		return hotkeylib.ModShift, true
 	case "WIN", "WINDOWS", "SUPER":
-		return hotkeylib.ModWin, true
+		return hotkeylib.Mod4, true // Linux X11 中 Super/Win 是 Mod4
 	default:
 		return hotkeylib.Modifier(0), false
 	}
