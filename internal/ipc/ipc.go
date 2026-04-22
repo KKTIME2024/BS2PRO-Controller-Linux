@@ -1,4 +1,3 @@
-// Package ipc 提供核心服务与 GUI 之间的进程间通信
 package ipc
 
 import (
@@ -10,28 +9,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Microsoft/go-winio"
 	"github.com/TIANLI0/BS2PRO-Controller/internal/types"
 )
 
 const (
-	// PipeName 命名管道名称
-	PipeName = "BS2PRO-Controller-IPC"
-	// PipePath 命名管道完整路径
-	PipePath = `\\.\pipe\` + PipeName
+	PipeName   = "bs2pro-controller-ipc.sock"
+	SockDir    = "/tmp"
+	SocketPath = SockDir + "/" + PipeName
 )
 
-// RequestType 请求类型
 type RequestType string
 
 const (
-	// 设备相关
 	ReqConnect           RequestType = "Connect"
 	ReqDisconnect        RequestType = "Disconnect"
 	ReqGetDeviceStatus   RequestType = "GetDeviceStatus"
 	ReqGetCurrentFanData RequestType = "GetCurrentFanData"
 
-	// 配置相关
 	ReqGetConfig                RequestType = "GetConfig"
 	ReqUpdateConfig             RequestType = "UpdateConfig"
 	ReqSetFanCurve              RequestType = "SetFanCurve"
@@ -43,7 +37,6 @@ const (
 	ReqExportFanCurveProfiles   RequestType = "ExportFanCurveProfiles"
 	ReqImportFanCurveProfiles   RequestType = "ImportFanCurveProfiles"
 
-	// 控制相关
 	ReqSetAutoControl    RequestType = "SetAutoControl"
 	ReqSetManualGear     RequestType = "SetManualGear"
 	ReqGetAvailableGears RequestType = "GetAvailableGears"
@@ -54,58 +47,49 @@ const (
 	ReqSetBrightness     RequestType = "SetBrightness"
 	ReqSetLightStrip     RequestType = "SetLightStrip"
 
-	// 温度相关
 	ReqGetTemperature         RequestType = "GetTemperature"
 	ReqTestTemperatureReading RequestType = "TestTemperatureReading"
 	ReqTestBridgeProgram      RequestType = "TestBridgeProgram"
 	ReqGetBridgeProgramStatus RequestType = "GetBridgeProgramStatus"
 
-	// 自启动相关
 	ReqSetWindowsAutoStart    RequestType = "SetWindowsAutoStart"
 	ReqCheckWindowsAutoStart  RequestType = "CheckWindowsAutoStart"
 	ReqIsRunningAsAdmin       RequestType = "IsRunningAsAdmin"
 	ReqGetAutoStartMethod     RequestType = "GetAutoStartMethod"
 	ReqSetAutoStartWithMethod RequestType = "SetAutoStartWithMethod"
 
-	// 窗口相关
 	ReqShowWindow RequestType = "ShowWindow"
 	ReqHideWindow RequestType = "HideWindow"
 	ReqQuitApp    RequestType = "QuitApp"
 
-	// 调试相关
 	ReqGetDebugInfo          RequestType = "GetDebugInfo"
 	ReqSetDebugMode          RequestType = "SetDebugMode"
 	ReqUpdateGuiResponseTime RequestType = "UpdateGuiResponseTime"
 
-	// 系统相关
 	ReqPing              RequestType = "Ping"
 	ReqIsAutoStartLaunch RequestType = "IsAutoStartLaunch"
 	ReqSubscribeEvents   RequestType = "SubscribeEvents"
 	ReqUnsubscribeEvents RequestType = "UnsubscribeEvents"
 )
 
-// Request IPC 请求
 type Request struct {
 	Type RequestType     `json:"type"`
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
-// Response IPC 响应
 type Response struct {
-	IsResponse bool            `json:"isResponse"` // 标识这是响应而非事件
+	IsResponse bool            `json:"isResponse"`
 	Success    bool            `json:"success"`
 	Error      string          `json:"error,omitempty"`
 	Data       json.RawMessage `json:"data,omitempty"`
 }
 
-// Event IPC 事件（服务器推送给客户端）
 type Event struct {
-	IsEvent bool            `json:"isEvent"` // 标识这是事件
+	IsEvent bool            `json:"isEvent"`
 	Type    string          `json:"type"`
 	Data    json.RawMessage `json:"data,omitempty"`
 }
 
-// EventType 事件类型
 const (
 	EventFanDataUpdate      = "fan-data-update"
 	EventTemperatureUpdate  = "temperature-update"
@@ -118,7 +102,6 @@ const (
 	EventHeartbeat          = "heartbeat"
 )
 
-// Server IPC 服务器
 type Server struct {
 	listener net.Listener
 	clients  map[net.Conn]bool
@@ -128,10 +111,8 @@ type Server struct {
 	running  bool
 }
 
-// RequestHandler 请求处理函数类型
 type RequestHandler func(req Request) Response
 
-// NewServer 创建 IPC 服务器
 func NewServer(handler RequestHandler, logger types.Logger) *Server {
 	return &Server{
 		clients: make(map[net.Conn]bool),
@@ -140,29 +121,27 @@ func NewServer(handler RequestHandler, logger types.Logger) *Server {
 	}
 }
 
-// Start 启动服务器
 func (s *Server) Start() error {
-	// 创建命名管道监听器
-	cfg := &winio.PipeConfig{
-		SecurityDescriptor: "D:P(A;;GA;;;WD)", // 允许所有用户访问
+	os.Remove(SocketPath)
+
+	listener, err := net.Listen("unix", SocketPath)
+	if err != nil {
+		return fmt.Errorf("创建 Unix 域套接字失败: %v", err)
 	}
 
-	listener, err := winio.ListenPipe(PipePath, cfg)
-	if err != nil {
-		return fmt.Errorf("创建命名管道失败: %v", err)
+	if err := os.Chmod(SocketPath, 0666); err != nil {
+		s.logError("设置套接字权限失败: %v", err)
 	}
 
 	s.listener = listener
 	s.running = true
-	s.logInfo("IPC 服务器已启动: %s", PipePath)
+	s.logInfo("IPC 服务器已启动: %s", SocketPath)
 
-	// 接受连接
 	go s.acceptConnections()
 
 	return nil
 }
 
-// acceptConnections 接受客户端连接
 func (s *Server) acceptConnections() {
 	for s.running {
 		conn, err := s.listener.Accept()
@@ -182,7 +161,6 @@ func (s *Server) acceptConnections() {
 	}
 }
 
-// handleClient 处理客户端连接
 func (s *Server) handleClient(conn net.Conn) {
 	defer func() {
 		s.mutex.Lock()
@@ -201,7 +179,6 @@ func (s *Server) handleClient(conn net.Conn) {
 			return
 		}
 
-		// 解析请求
 		var req Request
 		if err := json.Unmarshal(line, &req); err != nil {
 			s.logError("解析请求失败: %v", err)
@@ -210,7 +187,6 @@ func (s *Server) handleClient(conn net.Conn) {
 		resp := s.handler(req)
 		resp.IsResponse = true
 
-		// 发送响应
 		respBytes, err := json.Marshal(resp)
 		if err != nil {
 			s.logError("序列化响应失败: %v", err)
@@ -225,7 +201,6 @@ func (s *Server) handleClient(conn net.Conn) {
 	}
 }
 
-// BroadcastEvent 广播事件给所有客户端
 func (s *Server) BroadcastEvent(eventType string, data any) {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -234,7 +209,7 @@ func (s *Server) BroadcastEvent(eventType string, data any) {
 	}
 
 	event := Event{
-		IsEvent: true, // 标记为事件
+		IsEvent: true,
 		Type:    eventType,
 		Data:    dataBytes,
 	}
@@ -258,7 +233,6 @@ func (s *Server) BroadcastEvent(eventType string, data any) {
 	}
 }
 
-// Stop 停止服务器
 func (s *Server) Stop() {
 	s.running = false
 	if s.listener != nil {
@@ -272,17 +246,17 @@ func (s *Server) Stop() {
 	s.clients = make(map[net.Conn]bool)
 	s.mutex.Unlock()
 
+	os.Remove(SocketPath)
+
 	s.logInfo("IPC 服务器已停止")
 }
 
-// HasClients 检查是否有客户端连接
 func (s *Server) HasClients() bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return len(s.clients) > 0
 }
 
-// 日志辅助方法
 func (s *Server) logInfo(format string, v ...any) {
 	if s.logger != nil {
 		s.logger.Info(format, v...)
@@ -301,7 +275,6 @@ func (s *Server) logDebug(format string, v ...any) {
 	}
 }
 
-// Client IPC 客户端
 type Client struct {
 	conn         net.Conn
 	mutex        sync.Mutex
@@ -313,7 +286,6 @@ type Client struct {
 	connMutex    sync.RWMutex
 }
 
-// NewClient 创建 IPC 客户端
 func NewClient(logger types.Logger) *Client {
 	return &Client{
 		logger:       logger,
@@ -321,7 +293,6 @@ func NewClient(logger types.Logger) *Client {
 	}
 }
 
-// Connect 连接到服务器
 func (c *Client) Connect() error {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
@@ -330,8 +301,7 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
-	timeout := 5 * time.Second
-	conn, err := winio.DialPipe(PipePath, &timeout)
+	conn, err := net.DialTimeout("unix", SocketPath, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("连接 IPC 服务器失败: %v", err)
 	}
@@ -341,13 +311,11 @@ func (c *Client) Connect() error {
 	c.connected = true
 	c.logInfo("已连接到 IPC 服务器")
 
-	// 启动消息接收循环
 	go c.readLoop()
 
 	return nil
 }
 
-// readLoop 统一的消息读取循环
 func (c *Client) readLoop() {
 	for {
 		c.connMutex.RLock()
@@ -367,7 +335,6 @@ func (c *Client) readLoop() {
 			return
 		}
 
-		// 使用通用结构来检测消息类型
 		var msg struct {
 			IsResponse bool `json:"isResponse"`
 			IsEvent    bool `json:"isEvent"`
@@ -397,12 +364,10 @@ func (c *Client) readLoop() {
 	}
 }
 
-// SetEventHandler 设置事件处理函数
 func (c *Client) SetEventHandler(handler func(Event)) {
 	c.eventHandler = handler
 }
 
-// SendRequest 发送请求并等待响应
 func (c *Client) SendRequest(reqType RequestType, data any) (*Response, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -434,7 +399,6 @@ func (c *Client) SendRequest(reqType RequestType, data any) (*Response, error) {
 		return nil, fmt.Errorf("序列化请求失败: %v", err)
 	}
 
-	// 清空响应通道
 	select {
 	case <-c.responseChan:
 	default:
@@ -453,7 +417,6 @@ func (c *Client) SendRequest(reqType RequestType, data any) (*Response, error) {
 	}
 }
 
-// Close 关闭连接
 func (c *Client) Close() {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
@@ -465,14 +428,12 @@ func (c *Client) Close() {
 	}
 }
 
-// IsConnected 检查是否已连接
 func (c *Client) IsConnected() bool {
 	c.connMutex.RLock()
 	defer c.connMutex.RUnlock()
 	return c.connected
 }
 
-// 日志辅助方法
 func (c *Client) logInfo(format string, v ...any) {
 	if c.logger != nil {
 		c.logger.Info(format, v...)
@@ -485,10 +446,8 @@ func (c *Client) logDebug(format string, v ...any) {
 	}
 }
 
-// CheckCoreServiceRunning 检查核心服务是否正在运行
 func CheckCoreServiceRunning() bool {
-	timeout := 1 * time.Second
-	conn, err := winio.DialPipe(PipePath, &timeout)
+	conn, err := net.DialTimeout("unix", SocketPath, 1*time.Second)
 	if err != nil {
 		return false
 	}
@@ -496,66 +455,53 @@ func CheckCoreServiceRunning() bool {
 	return true
 }
 
-// GetCoreLockFilePath 获取核心服务锁文件路径
 func GetCoreLockFilePath() string {
-	tempDir := os.TempDir()
-	return fmt.Sprintf("%s/bs2pro-core.lock", tempDir)
+	return "/tmp/bs2pro-core.lock"
 }
 
-// StartCoreRequestParams 启动核心服务的请求参数
 type StartCoreRequestParams struct {
 	ShowGUI bool `json:"showGUI"`
 }
 
-// SetAutoControlParams 设置智能变频参数
 type SetAutoControlParams struct {
 	Enabled bool `json:"enabled"`
 }
 
-// SetManualGearParams 设置手动挡位参数
 type SetManualGearParams struct {
 	Gear  string `json:"gear"`
 	Level string `json:"level"`
 }
 
-// SetCustomSpeedParams 设置自定义转速参数
 type SetCustomSpeedParams struct {
 	Enabled bool `json:"enabled"`
 	RPM     int  `json:"rpm"`
 }
 
-// SetBoolParams 布尔参数
 type SetBoolParams struct {
 	Enabled bool `json:"enabled"`
 }
 
-// SetStringParams 字符串参数
 type SetStringParams struct {
 	Value string `json:"value"`
 }
 
-// SetIntParams 整数参数
 type SetIntParams struct {
 	Value int `json:"value"`
 }
 
-// SetAutoStartWithMethodParams 设置自启动方式参数
 type SetAutoStartWithMethodParams struct {
 	Enable bool   `json:"enable"`
 	Method string `json:"method"`
 }
 
-// SetLightStripParams 设置灯带参数
 type SetLightStripParams struct {
 	Config types.LightStripConfig `json:"config"`
 }
 
-// SetActiveFanCurveProfileParams 设置激活曲线方案参数
 type SetActiveFanCurveProfileParams struct {
 	ID string `json:"id"`
 }
 
-// SaveFanCurveProfileParams 保存曲线方案参数
 type SaveFanCurveProfileParams struct {
 	ID        string                `json:"id"`
 	Name      string                `json:"name"`
@@ -563,12 +509,10 @@ type SaveFanCurveProfileParams struct {
 	SetActive bool                  `json:"setActive"`
 }
 
-// DeleteFanCurveProfileParams 删除曲线方案参数
 type DeleteFanCurveProfileParams struct {
 	ID string `json:"id"`
 }
 
-// ImportFanCurveProfilesParams 导入曲线方案参数
 type ImportFanCurveProfilesParams struct {
 	Code string `json:"code"`
 }

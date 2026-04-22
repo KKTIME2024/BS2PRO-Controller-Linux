@@ -60,7 +60,7 @@ func ensureNotificationIcon(iconData []byte, logger types.Logger) string {
 		return ""
 	}
 
-	iconPath := filepath.Join(iconDir, "notify-icon.ico")
+	iconPath := filepath.Join(iconDir, "notify-icon.png")
 	if err := os.WriteFile(iconPath, iconData, 0644); err != nil {
 		if logger != nil {
 			logger.Debug("写入通知图标缓存失败: %v", err)

@@ -11,10 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/Microsoft/go-winio"
 	"github.com/TIANLI0/BS2PRO-Controller/internal/types"
 )
 
@@ -102,9 +100,7 @@ func (m *Manager) start() error {
 
 	// 启动桥接程序
 	cmd := exec.Command(bridgePath, "--pipe")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
-	// 获取输出管道来读取管道名称
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("创建stdout管道失败: %v", err)
@@ -204,31 +200,29 @@ func (m *Manager) start() error {
 	return nil
 }
 
-// connectToPipe 连接到命名管道 (使用go-winio实现)
+// connectToPipe 连接到管道
 func (m *Manager) connectToPipe(pipeName string, timeout time.Duration) (net.Conn, error) {
-	pipePath := `\\.\pipe\` + pipeName
 	deadline := time.Now().Add(timeout)
 	retryCount := 0
 
-	m.logger.Debug("尝试连接到管道: %s", pipePath)
+	m.logger.Debug("尝试连接到管道: %s", pipeName)
 
 	for time.Now().Before(deadline) {
-		// 使用go-winio连接命名管道
-		conn, err := winio.DialPipe(pipePath, &timeout)
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:"+pipeName, 100*time.Millisecond)
 		if err == nil {
 			m.logger.Info("成功连接到管道，重试次数: %d", retryCount)
 			return conn, nil
 		}
 
 		retryCount++
-		if retryCount%50 == 0 { // 每5秒输出一次日志
+		if retryCount%50 == 0 {
 			m.logger.Debug("连接管道重试中... 第%d次尝试，错误: %v", retryCount, err)
 		}
 
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	return nil, fmt.Errorf("连接管道超时，总计重试%d次，最后错误可能是权限或管道未就绪", retryCount)
+	return nil, fmt.Errorf("连接管道超时，总计重试%d次", retryCount)
 }
 
 // SendCommand 发送命令到桥接程序

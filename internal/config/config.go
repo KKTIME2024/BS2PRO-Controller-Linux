@@ -139,12 +139,15 @@ func (m *Manager) Save() error {
 
 // GetDefaultConfigDir 获取默认配置目录
 func (m *Manager) GetDefaultConfigDir() string {
+	if configDir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(configDir, "bs2pro-controller")
+	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		m.logError("获取用户主目录失败: %v", err)
 		return filepath.Join(m.installDir, "config")
 	}
-	return filepath.Join(homeDir, ".bs2pro-controller")
+	return filepath.Join(homeDir, ".config", "bs2pro-controller")
 }
 
 // Get 获取当前配置

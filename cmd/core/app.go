@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/TIANLI0/BS2PRO-Controller/internal/autostart"
@@ -1836,19 +1835,16 @@ func launchGUI() error {
 	}
 
 	exeDir := filepath.Dir(exePath)
-	guiPath := filepath.Join(exeDir, "BS2PRO-Controller.exe")
+	guiPath := filepath.Join(exeDir, "BS2PRO-Controller")
 
 	if _, err := os.Stat(guiPath); os.IsNotExist(err) {
-		guiPath = filepath.Join(exeDir, "..", "BS2PRO-Controller.exe")
+		guiPath = filepath.Join(exeDir, "..", "BS2PRO-Controller")
 		if _, err := os.Stat(guiPath); os.IsNotExist(err) {
 			return fmt.Errorf("GUI 程序不存在: %s", guiPath)
 		}
 	}
 
 	cmd := exec.Command(guiPath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow: false,
-	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("启动 GUI 程序失败: %v", err)
