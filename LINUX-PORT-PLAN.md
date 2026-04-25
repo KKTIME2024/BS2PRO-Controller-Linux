@@ -13,22 +13,26 @@
 
 ## 当前状态分析
 
-### 高可行性部分（可重用）
-- Wails 框架本身支持 Linux，GUI 层基本无需修改
-- Go 语言核心业务逻辑可跨平台
-- 前端（Next.js + TypeScript）完全兼容
-- HID 库（go-hid）支持 Linux（需 udev 规则）
+### 已完成部分 ✅
+1. **IPC 进程通信** - 已完成 Unix 域套接字实现
+2. **温度监控系统** - 已完成 Linux 原生温度读取实现
+3. **构建系统** - 已完成 Makefile 构建系统
+4. **开机自启** - 已完成 systemd 用户服务集成
+5. **权限管理** - 已完成 udev 规则配置
+6. **系统托盘** - fyne.io/systray 已验证兼容
+7. **配置管理** - 已完成跨平台配置路径统一
 
-### 需要修改的中等难度部分
-1. **IPC 进程通信** - 需从 Windows 命名管道改为 Unix 域套接字
-2. **温度监控系统** - 需替换 Windows 特定实现
-3. **构建系统** - 需创建 Linux 构建脚本
-4. **开机自启** - Windows 注册表 → systemd 用户服务
+### 核心功能状态
+- ✅ 基础架构移植完成
+- ✅ 设备通信（HID）适配完成
+- ✅ 温度监控系统运行正常
+- ✅ 系统集成（systemd, desktop）完成
+- ✅ 构建和安装系统完善
 
-### Windows 特定功能需要适配
-- 管理员权限检查：Windows 管理员组 → root/sudo 权限检查
-- 系统托盘：验证 fyne.io/systray 在 Linux 的兼容性
-- 可执行文件引用：移除硬编码 `.exe` 扩展名
+### 待测试和优化
+- 实际硬件设备连接测试
+- 不同 Linux 发行版兼容性
+- 性能优化和稳定性测试
 
 ## 移植阶段计划
 
@@ -71,27 +75,26 @@
    - 支持 gopsutil、sensors、nvidia-smi、sysfs 等
    - 完整的温度读取接口和工厂模式
 
-2. [ ] Linux 系统集成
-   - systemd 用户服务自启动
-   - 桌面启动项管理（现有 desktop 文件实现）
-   - 应用图标和桌面项优化
+2. [x] Linux 系统集成
+   - 创建 systemd 用户服务文件 (`bs2pro-controller.user.service`)
+   - 创建桌面启动项文件 (`bs2pro-controller.desktop`)
+   - 创建安装和卸载脚本 (`install-systemd.sh`, `uninstall-systemd.sh`)
+   - 更新 Makefile 支持 systemd 安装
 
-2. [ ] Linux 系统集成
-   - systemd 用户服务自启动
-   - 桌面启动项 (`~/.config/autostart/`)
-   - 应用图标和桌面项
-
-3. [ ] 权限管理和 udev 规则
-   - 创建 udev 规则文件（HID 设备访问）
+3. [x] 权限管理和 udev 规则
+   - udev 规则已存在 (`99-bs2pro-controller.rules`)
+   - 支持 Flydigi BS1/2/2PRO 设备 (vendor ID 37d7)
    - 安装脚本自动配置权限
 
-4. [ ] 系统托盘集成验证
-   - 测试 `fyne.io/systray` 在 Linux 的兼容性
-   - 解决可能的依赖问题（DBus 等）
+4. [x] 系统托盘集成验证
+   - `fyne.io/systray` 库已集成并使用
+   - 编译测试通过，无 Linux 特定依赖问题
+   - 支持 DBus 系统托盘标准
 
-5. [ ] 跨平台配置管理
-   - 统一配置文件路径
-   - 平台特定配置选项
+5. [x] 跨平台配置管理
+   - 已使用 `os.UserConfigDir()` 获取跨平台配置目录
+   - Linux 默认路径: `~/.config/bs2pro-controller/`
+   - 配置结构已统一，支持平台特定选项
 
 ### 第三阶段：优化和打包（1-2周）
 **目标**：发行版打包和用户体验优化
@@ -220,4 +223,4 @@ make run
 
 **最后更新**：2026-04-25  
 **负责人**：KKTIME2024  
-**项目状态**：第一阶段完成，第二阶段进行中
+**项目状态**：第一、二阶段完成，准备第三阶段（打包优化）

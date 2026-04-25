@@ -18,9 +18,11 @@
 
 ### 当前状态
 - ✅ 基础代码移植完成
-- 🔄 IPC 层重构进行中（Windows 命名管道 → Unix 套接字）
-- 🔄 温度监控系统适配进行中
-- ⏳ Linux 系统集成待实现
+- ✅ IPC 层重构完成（使用 Unix 域套接字）
+- ✅ Linux 原生温度监控系统完成
+- ✅ Linux 系统集成完成（systemd, desktop, udev）
+- ✅ 构建系统和安装脚本完善
+- 🔄 实际硬件测试进行中
 - 📋 详细开发计划见 [LINUX-PORT-PLAN.md](LINUX-PORT-PLAN.md)
 
 ## 功能特性
@@ -130,21 +132,53 @@ wails dev
 
 ### 4. 构建生产版本（Linux）
 
-**注意**：Linux 构建系统正在开发中，目前使用 Wails 基础构建：
+**使用 Makefile 构建**：
 
 ```bash
-# 构建 Linux 版本
-wails build -platform linux/amd64
+# 构建所有组件
+make build
 
-# 或指定其他架构
-wails build -platform linux/arm64
+# 或分别构建
+make build-core    # 构建核心服务
+make build-gui     # 构建 GUI 程序
 ```
 
 构建完成后，可执行文件位于 `build/bin/` 目录：
 - `BS2PRO-Controller` - GUI 主程序
 - `BS2PRO-Core` - 核心服务
 
-**未来计划**：完整的 Makefile 构建系统和 systemd 服务集成。
+### 5. 安装和系统集成
+
+#### 用户安装（推荐）：
+```bash
+# 构建并安装到用户目录
+make user-install
+
+# 启用 systemd 服务和 udev 规则
+make install-systemd
+```
+
+#### 系统范围安装：
+```bash
+# 需要 root 权限
+sudo make install
+```
+
+#### 其他命令：
+```bash
+# 开发模式运行
+make dev
+
+# 运行构建的程序
+make run
+
+# 清理构建文件
+make clean
+
+# 卸载
+make uninstall-systemd
+make user-uninstall
+```
 
 ## 项目结构
 
@@ -160,14 +194,16 @@ BS2PRO-Controller-Linux/
 │       └── app.go         # 服务逻辑
 │
 ├── internal/              # 内部包
-│   ├── autostart/         # 开机自启管理（待适配 Linux）
-│   ├── bridge/            # 温度桥接通信（待重构）
-│   ├── config/            # 配置管理
-│   ├── device/            # HID 设备通信
-│   ├── ipc/               # 进程间通信（Windows 命名管道 → Unix 套接字）
+│   ├── autostart/         # 开机自启管理（Linux desktop 文件）
+│   ├── bridge/            # 温度桥接通信（保留接口）
+│   ├── config/            # 配置管理（跨平台）
+│   ├── device/            # HID 设备通信（Linux 适配）
+│   ├── ipc/               # 进程间通信（Unix 域套接字）
 │   ├── logger/            # 日志模块
-│   ├── temperature/       # 温度监控（待适配 Linux）
-│   ├── tray/              # 系统托盘
+│   ├── temperature/       # 温度监控（Linux 原生实现）
+│   │   ├── factory.go     # 温度管理器工厂
+│   │   └── linux_temperature.go  # Linux 温度读取器
+│   ├── tray/              # 系统托盘（fyne.io/systray）
 │   ├── types/             # 类型定义
 │   └── version/           # 版本信息
 │
@@ -180,8 +216,15 @@ BS2PRO-Controller-Linux/
 │   │   └── ...
 │   └── package.json
 │
-├── scripts/               # Linux 构建和安装脚本（待创建）
-└── build/                 # 构建输出目录
+├── scripts/               # Linux 构建和安装脚本
+│   ├── install-systemd.sh    # systemd 服务安装脚本
+│   └── uninstall-systemd.sh  # 卸载脚本
+├── build/                 # 构建输出和系统文件
+│   ├── bin/              # 可执行文件
+│   ├── bs2pro-controller.user.service  # systemd 用户服务
+│   ├── 99-bs2pro-controller.rules      # udev 规则
+│   └── bs2pro-controller.desktop       # 桌面文件
+└── Makefile              # 构建和安装管理
 ```
 
 ### 已移除的 Windows 特定组件
@@ -266,13 +309,36 @@ BS2PRO-Controller-Linux/
 ### 温度无法显示？
 
 ### 开机自启无效？（Linux）
-1. 检查 systemd 用户服务是否启用：`systemctl --user status bs2pro-controller`
-2. 检查桌面启动项：`~/.config/autostart/bs2pro-controller.desktop`
-3. 确保有正确的执行权限
+
+#### Systemd 用户服务：
+```bash
+# 检查服务状态
+systemctl --user status bs2pro-controller
+
+# 启用服务（开机自启）
+systemctl --user enable bs2pro-controller
+
+# 启动服务
+systemctl --user start bs2pro-controller
+
+# 查看日志
+journalctl --user -u bs2pro-controller -f
+```
+
+#### 桌面启动项：
+- 检查文件：`~/.config/autostart/bs2pro-controller.desktop`
+- 确保 desktop 文件存在且可执行权限正确
+
+#### 常见问题：
+1. **systemd 用户会话未启用**：
+   ```bash
+   loginctl enable-linger $USER
+   ```
+2. **DBus 会话未启动**：重新登录或重启系统
+3. **权限问题**：确保用户对 HID 设备有访问权限（检查 udev 规则）
 
 ## 构建说明
 
-版本号在 `wails.json` 的 `info.productVersion` 字段中定义，构建脚本会自动读取并嵌入到程序中。
 版本号在 `wails.json` 的 `info.productVersion` 字段中定义，构建脚本会自动读取并嵌入到程序中。
 
 ### Linux 构建标志
@@ -283,25 +349,47 @@ BS2PRO-Controller-Linux/
 -ldflags "-X github.com/TIANLI0/BS2PRO-Controller/internal/version.BuildVersion=版本号"
 ```
 
-### Linux 安装
+### Linux 系统集成
 
-当前支持以下安装方式：
+#### 完整的安装流程：
 
-1. **手动安装**：
-   ```bash
-   wails build -platform linux/amd64
-   sudo cp build/bin/BS2PRO-Controller /usr/local/bin/
-   sudo cp build/bin/BS2PRO-Core /usr/local/bin/
-   ```
+```bash
+# 1. 克隆项目
+git clone https://github.com/KKTIME2024/BS2PRO-Controller-Linux.git
+cd BS2PRO-Controller-Linux
 
-2. **systemd 用户服务**（待实现）：
-   ```bash
-   systemctl --user enable bs2pro-controller
-   systemctl --user start bs2pro-controller
-   ```
+# 2. 构建程序
+make build
 
-3. **桌面启动项**（待实现）：
-   - 自动创建 `~/.config/autostart/bs2pro-controller.desktop`
+# 3. 用户安装（推荐）
+make user-install
+
+# 4. 启用 systemd 服务和 udev 规则
+make install-systemd
+```
+
+#### 安装脚本功能：
+- ✅ **systemd 用户服务**：后台运行，开机自启
+- ✅ **udev 规则**：自动配置 HID 设备权限
+- ✅ **桌面集成**：应用菜单和桌面启动项
+- ✅ **配置管理**：自动创建配置目录和文件
+
+#### 服务管理：
+```bash
+# 查看服务状态
+systemctl --user status bs2pro-controller
+
+# 启动/停止服务
+systemctl --user start bs2pro-controller
+systemctl --user stop bs2pro-controller
+
+# 启用/禁用开机自启
+systemctl --user enable bs2pro-controller
+systemctl --user disable bs2pro-controller
+
+# 查看日志
+journalctl --user -u bs2pro-controller -f
+```
 
 ## 贡献指南
 
