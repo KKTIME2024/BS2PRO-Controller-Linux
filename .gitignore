@@ -85,6 +85,9 @@ coverage/
 nosetests.xml
 coverage.xml
 *.cover
+*.cover.html
+coverage.*
+coverage-*.html
 .hypothesis/
 .pytest_cache/
 
