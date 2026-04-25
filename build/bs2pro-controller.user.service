@@ -1,0 +1,32 @@
+[Unit]
+Description=BS2PRO Controller Core Service (User)
+After=graphical-session.target
+Wants=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/BS2PRO-Core --autostart
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bs2pro-controller
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=default.target

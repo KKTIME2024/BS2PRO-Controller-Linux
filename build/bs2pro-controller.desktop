@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=BS2PRO Controller
+GenericName=BS2PRO Cooling Device Controller
+Comment=Control Flydigi BS2/BS2PRO cooling devices with temperature monitoring
+Exec=BS2PRO-Controller
+Icon=bs2pro-controller
+Terminal=false
+Categories=Utility;System;
+Keywords=cooling;fan;temperature;bs2pro;flydigi;
+StartupNotify=true
+StartupWMClass=bs2pro-controller
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
+X-KDE-autostart-after=panel
+X-MATE-Autostart-Delay=5

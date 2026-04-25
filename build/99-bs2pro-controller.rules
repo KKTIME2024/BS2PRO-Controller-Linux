@@ -1,0 +1,12 @@
+# BS2PRO-Controller - HID device udev rules
+# Install: sudo cp 99-bs2pro-controller.rules /etc/udev/rules.d/
+# Then: sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# Flydigi BS2PRO (ProductID 0x1002)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37d7", ATTRS{idProduct}=="1002", MODE="0666", GROUP="plugdev"
+
+# Flydigi BS2 (ProductID 0x1001)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37d7", ATTRS{idProduct}=="1001", MODE="0666", GROUP="plugdev"
+
+# Generic rule for any 37d7 vendor HID device
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37d7", MODE="0666", GROUP="plugdev"
