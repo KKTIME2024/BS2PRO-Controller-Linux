@@ -22,8 +22,10 @@
 - ✅ Linux 原生温度监控系统完成
 - ✅ Linux 系统集成完成（systemd, desktop, udev）
 - ✅ 构建系统和安装脚本完善
-- 🔄 实际硬件测试进行中
+- ✅✅✅ **硬件连接测试完全成功** (2026-04-25 验证)
+- ✅ 双向通信验证通过 (发送/接收/物理响应)
 - 📋 详细开发计划见 [LINUX-PORT-PLAN.md](LINUX-PORT-PLAN.md)
+- 📊 硬件测试结果见 [docs/HARDWARE_TEST_STATUS.md](docs/HARDWARE_TEST_STATUS.md)
 
 ## 功能特性
 
@@ -240,6 +242,38 @@ BS2PRO-Controller-Linux/
 - ❌ `bridge/TempBridge/` - C# 温度桥接程序
 - ❌ `cmd/core/winres/` - Windows 资源文件
 - ❌ `build/windows/` - Windows 安装资源
+
+## 📊 硬件测试验证
+
+本项目已通过全面的硬件连接测试，验证了BS2设备在Linux下的完全支持：
+
+### ✅ 已验证的功能
+- **✅ 设备连接**：USB/HID枚举和识别
+- **✅ 双向通信**：命令发送和响应接收
+- **✅ 物理响应**：挡位灯控制和风扇转速变化
+- **✅ 实时监控**：风扇状态数据包读取
+- **✅ 权限持久**：udev规则配置持久生效
+
+### 🔧 硬件测试脚本
+项目提供了完整的测试工具：
+```
+# 基础连接测试
+python3 test/test_bs2_connection.py
+
+# 自动功能测试
+python3 test/auto_test_bs2.py
+
+# 详细验证
+python3 test/detailed_verification.py
+
+# 重启验证脚本
+bash test/scripts/verify_after_reboot.sh
+```
+
+### 📁 测试文档
+- [硬件测试完整报告](docs/HARDWARE_TEST_STATUS.md)
+- [硬件测试成功总结](docs/HARDWARE_TEST_SUCCESS_SUMMARY.md)
+- [测试流程指南](docs/HARDWARE_TEST_README.md)
 
 ## 使用说明
 
