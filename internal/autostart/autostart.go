@@ -22,12 +22,17 @@ func (m *Manager) IsRunningAsAdmin() bool {
 	return os.Geteuid() == 0
 }
 
-func (m *Manager) SetWindowsAutoStart(enable bool) error {
+func (m *Manager) SetLinuxAutoStart(enable bool) error {
 	if enable {
 		return m.createAutostartDesktopFile()
 	} else {
 		return m.removeAutostartDesktopFile()
 	}
+}
+
+// SetWindowsAutoStart 兼容Windows接口（Linux下使用桌面文件）
+func (m *Manager) SetWindowsAutoStart(enable bool) error {
+	return m.SetLinuxAutoStart(enable)
 }
 
 func (m *Manager) createAutostartDesktopFile() error {
@@ -89,17 +94,16 @@ func (m *Manager) SetAutoStartWithMethod(enable bool, method string) error {
 	}
 }
 
-func (m *Manager) CheckWindowsAutoStart() bool {
+func (m *Manager) CheckLinuxAutoStart() bool {
 	return m.GetAutoStartMethod() != "none"
 }
 
-func (m *Manager) checkScheduledTask() bool {
-	return false
+// CheckWindowsAutoStart 兼容Windows接口
+func (m *Manager) CheckWindowsAutoStart() bool {
+	return m.CheckLinuxAutoStart()
 }
 
-func (m *Manager) checkRegistryAutoStart() bool {
-	return false
-}
+
 
 func DetectAutoStartLaunch(args []string) bool {
 	for _, arg := range args {

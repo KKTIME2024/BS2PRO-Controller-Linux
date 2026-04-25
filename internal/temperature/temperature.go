@@ -1,25 +1,33 @@
 package temperature
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/TIANLI0/BS2PRO-Controller/internal/bridge"
 	"github.com/TIANLI0/BS2PRO-Controller/internal/types"
 	"github.com/shirou/gopsutil/v4/sensors"
 )
 
-type Reader struct {
-	bridgeManager *bridge.Manager
-	logger        types.Logger
+// TemperatureInterface 温度读取接口
+type TemperatureInterface interface {
+	GetTemperature() types.BridgeTemperatureData
+	GetStatus() map[string]any
+	EnsureRunning() error
+	Stop()
 }
 
-func NewReader(bridgeManager *bridge.Manager, logger types.Logger) *Reader {
+type Reader struct {
+	tempManager TemperatureInterface
+	logger      types.Logger
+}
+
+func NewReader(tempManager TemperatureInterface, logger types.Logger) *Reader {
 	return &Reader{
-		bridgeManager: bridgeManager,
-		logger:        logger,
+		tempManager: tempManager,
+		logger:      logger,
 	}
 }
 
@@ -29,12 +37,23 @@ func (r *Reader) Read() types.TemperatureData {
 		BridgeOk:   true,
 	}
 
-	bridgeTemp := r.bridgeManager.GetTemperature()
+	if err := r.tempManager.EnsureRunning(); err != nil {
+		r.logger.Warn("温度管理器启动失败: %v, 使用备用方法", err)
+		temp.BridgeOk = false
+		temp.BridgeMsg = fmt.Sprintf("温度管理器启动失败: %v", err)
+		temp.CPUTemp = r.readCPUTemperature()
+		temp.GPUTemp = r.readGPUTemperature()
+		temp.MaxTemp = max(temp.CPUTemp, temp.GPUTemp)
+		return temp
+	}
+
+	bridgeTemp := r.tempManager.GetTemperature()
 	if bridgeTemp.Success {
+		// 检查温度数据是否合理
 		if bridgeTemp.CpuTemp == 0 && bridgeTemp.GpuTemp == 0 {
 			temp.BridgeOk = false
 			temp.BridgeMsg = "温度读取返回空数据，使用备用方法"
-			r.logger.Warn("桥接程序返回空温度数据，使用备用方法")
+			r.logger.Warn("温度管理器返回空温度数据，使用备用方法")
 
 			temp.CPUTemp = r.readCPUTemperature()
 			temp.GPUTemp = r.readGPUTemperature()
@@ -50,7 +69,7 @@ func (r *Reader) Read() types.TemperatureData {
 		return temp
 	}
 
-	r.logger.Warn("桥接程序读取温度失败: %s, 使用备用方法", bridgeTemp.Error)
+	r.logger.Warn("温度管理器读取温度失败: %s, 使用备用方法", bridgeTemp.Error)
 	temp.BridgeOk = false
 	temp.BridgeMsg = bridgeTemp.Error
 	if strings.TrimSpace(temp.BridgeMsg) == "" {
@@ -58,9 +77,7 @@ func (r *Reader) Read() types.TemperatureData {
 	}
 
 	temp.CPUTemp = r.readCPUTemperature()
-
 	temp.GPUTemp = r.readGPUTemperature()
-
 	temp.MaxTemp = max(temp.CPUTemp, temp.GPUTemp)
 
 	return temp
@@ -173,4 +190,17 @@ func CalculateTargetRPM(temperature int, fanCurve []types.FanCurvePoint) int {
 	}
 
 	return 0
+}
+
+// GetBridgeStatus 获取桥接状态（兼容原接口）
+func (r *Reader) GetBridgeStatus() map[string]any {
+	// 使用温度管理器获取状态
+	if r.tempManager != nil {
+		return r.tempManager.GetStatus()
+	}
+	return map[string]any{
+		"exists":  false,
+		"error":   "温度管理器未初始化",
+		"message": "使用Linux原生温度读取",
+	}
 }

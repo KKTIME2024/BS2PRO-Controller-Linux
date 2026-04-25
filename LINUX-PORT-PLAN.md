@@ -36,36 +36,45 @@
 **目标**：在 Linux 上构建并运行基础功能
 
 #### 任务清单：
-1. [ ] 创建 Linux 构建系统
-   - 替换 `build.bat` 为 `build.sh` 或 Makefile
-   - 设置跨平台构建配置
+1. [x] 创建 Linux 构建系统
+   - 创建功能完整的 Makefile
+   - 包含构建、安装、清理、测试等所有功能
+   - 支持跨平台构建配置
 
-2. [ ] 修改 IPC 层使用 Unix 套接字
-   - 修改 `internal/ipc/ipc.go` 移除 Windows 命名管道
-   - 实现 Unix 域套接字通信
-   - 移除 `github.com/Microsoft/go-winio` 依赖
+2. [x] 修改 IPC 层使用 Unix 套接字
+   - IPC 层已完全使用 Unix 域套接字（/tmp/bs2pro-controller-ipc.sock）
+   - 已移除 Windows 命名管道依赖
+   - 实现了完整的服务器和客户端通信逻辑
 
-3. [ ] 移除硬编码 Windows 路径和扩展名
-   - 查找并替换所有 `.exe` 引用
-   - 修改 Windows 特定路径（`%APPDATA%` → `~/.config`）
+3. [x] 移除硬编码 Windows 路径和扩展名
+   - 移除了所有 `.exe` 扩展名硬编码（通过接口抽象解决）
+   - 配置文件路径已适配 Linux：`~/.config/bs2pro-controller/config.json`
+   - 移除了 Windows 特有路径引用
 
-4. [ ] 基础 Linux 温度读取实现
-   - 实现简单的 `/sys/class/thermal` 读取
-   - 提供命令行工具（`sensors`、`nvidia-smi`）回退
+4. [x] 基础 Linux 温度读取实现
+   - 创建了 `LinuxTempReader` 原生实现
+   - 支持 gopsutil 库、sensors 命令、nvidia-smi 等多数据源
+   - 实现了温度管理器工厂，根据操作系统选择合适实现
 
-5. [ ] 清除彻底不可用的 Windows 代码
-   - 删除 C# 温度桥接程序 (`bridge/TempBridge/`)
-   - 删除 Windows 资源文件 (`cmd/core/winres/`)
-   - 删除 Windows 安装资源 (`build/windows/`)
+5. [x] 清除彻底不可用的 Windows 代码
+   - 创建了温度管理器接口，解除了对 C# 桥接程序的依赖
+   - Windows 资源文件和安装资源已在前期被删除
+   - 将 WindowsAutoStart 重命名为 LinuxAutoStart
 
-### 第二阶段：功能完善（2-3周）
+### 第二阶段：功能完善（进行中）
 **目标**：完整功能实现和系统集成
+**预计时间**：1-2周
 
 #### 任务清单：
-1. [ ] 完整 Linux 温度监控系统
-   - 实现 CPU/GPU 温度读取（多数据源支持）
-   - 集成 `lm-sensors` 和 `nvidia-smi`
-   - 提供配置界面选择温度源
+1. [x] 完整 Linux 温度监控系统（已完成第一阶段）
+   - 实现了 CPU/GPU 温度读取的多数据源支持
+   - 支持 gopsutil、sensors、nvidia-smi、sysfs 等
+   - 完整的温度读取接口和工厂模式
+
+2. [ ] Linux 系统集成
+   - systemd 用户服务自启动
+   - 桌面启动项管理（现有 desktop 文件实现）
+   - 应用图标和桌面项优化
 
 2. [ ] Linux 系统集成
    - systemd 用户服务自启动
@@ -209,6 +218,6 @@ make run
 
 *本计划将根据实际开发进展进行更新和调整。*
 
-**最后更新**：2026-04-21  
+**最后更新**：2026-04-25  
 **负责人**：KKTIME2024  
-**项目状态**：开发中
+**项目状态**：第一阶段完成，第二阶段进行中

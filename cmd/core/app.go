@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/TIANLI0/BS2PRO-Controller/internal/autostart"
-	"github.com/TIANLI0/BS2PRO-Controller/internal/bridge"
 	"github.com/TIANLI0/BS2PRO-Controller/internal/config"
 	"github.com/TIANLI0/BS2PRO-Controller/internal/device"
 	hotkeysvc "github.com/TIANLI0/BS2PRO-Controller/internal/hotkey"
@@ -37,7 +36,6 @@ type CoreApp struct {
 
 	// 管理器
 	deviceManager    *device.Manager
-	bridgeManager    *bridge.Manager
 	tempReader       *temperature.Reader
 	configManager    *config.Manager
 	trayManager      *tray.Manager
@@ -86,9 +84,8 @@ func NewCoreApp(debugMode, isAutoStart bool) *CoreApp {
 	}
 
 	// 创建管理器
-	bridgeMgr := bridge.NewManager(customLogger)
 	deviceMgr := device.NewManager(customLogger)
-	tempReader := temperature.NewReader(bridgeMgr, customLogger)
+	tempReader := temperature.CreateReaderWithDefaultManager(customLogger)
 	configMgr := config.NewManager(installDir, customLogger)
 	trayMgr := tray.NewManager(customLogger, iconData)
 	autostartMgr := autostart.NewManager(customLogger)
@@ -96,7 +93,6 @@ func NewCoreApp(debugMode, isAutoStart bool) *CoreApp {
 	app := &CoreApp{
 		ctx:                context.Background(),
 		deviceManager:      deviceMgr,
-		bridgeManager:      bridgeMgr,
 		tempReader:         tempReader,
 		currentTemp:        types.TemperatureData{BridgeOk: true},
 		configManager:      configMgr,
@@ -188,9 +184,9 @@ func (a *CoreApp) Start() error {
 
 	// 检查并同步Windows自启动状态
 	a.logInfo("检查Windows自启动状态")
-	actualAutoStart := a.autostartManager.CheckWindowsAutoStart()
-	if actualAutoStart != cfg.WindowsAutoStart {
-		cfg.WindowsAutoStart = actualAutoStart
+	actualAutoStart := a.autostartManager.CheckLinuxAutoStart()
+	if actualAutoStart != cfg.AutoStart {
+		cfg.AutoStart = actualAutoStart
 		a.configManager.Set(cfg)
 		if err := a.configManager.Save(); err != nil {
 			a.logError("同步Windows自启动状态时保存配置失败: %v", err)
@@ -266,9 +262,6 @@ func (a *CoreApp) Stop() {
 
 	// 停止所有监控
 	a.DisconnectDevice()
-
-	// 停止桥接程序
-	a.bridgeManager.Stop()
 
 	// 停止 IPC 服务器
 	if a.ipcServer != nil {
@@ -570,26 +563,28 @@ func (a *CoreApp) handleIPCRequest(req ipc.Request) ipc.Response {
 		return a.dataResponse(temp)
 
 	case ipc.ReqTestBridgeProgram:
-		data := a.bridgeManager.GetTemperature()
-		return a.dataResponse(data)
+		// 测试温度读取功能
+		tempData := a.tempReader.Read()
+		return a.dataResponse(tempData)
 
 	case ipc.ReqGetBridgeProgramStatus:
-		status := a.bridgeManager.GetStatus()
+		// 获取温度管理器状态
+		status := a.tempReader.GetBridgeStatus()
 		return a.dataResponse(status)
 
 	// 自启动相关
-	case ipc.ReqSetWindowsAutoStart:
+case ipc.ReqSetLinuxAutoStart:
 		var params ipc.SetBoolParams
 		if err := json.Unmarshal(req.Data, &params); err != nil {
 			return a.errorResponse("解析参数失败: " + err.Error())
 		}
-		if err := a.SetWindowsAutoStart(params.Enabled); err != nil {
-			return a.errorResponse(err.Error())
+		if err := a.SetLinuxAutoStart(params.Enabled); err != nil {
+			return a.errorResponse("设置开机自启动失败: " + err.Error())
 		}
 		return a.successResponse(true)
 
-	case ipc.ReqCheckWindowsAutoStart:
-		enabled := a.autostartManager.CheckWindowsAutoStart()
+	case ipc.ReqCheckLinuxAutoStart:
+		enabled := a.autostartManager.CheckLinuxAutoStart()
 		return a.dataResponse(enabled)
 
 	case ipc.ReqIsRunningAsAdmin:
@@ -1467,12 +1462,12 @@ func containsLevel(name, level string) bool {
 	return strings.Contains(name, level)
 }
 
-// SetWindowsAutoStart 设置Windows自启动
-func (a *CoreApp) SetWindowsAutoStart(enable bool) error {
-	err := a.autostartManager.SetWindowsAutoStart(enable)
+// SetLinuxAutoStart 设置Linux自启动
+func (a *CoreApp) SetLinuxAutoStart(enable bool) error {
+	err := a.autostartManager.SetLinuxAutoStart(enable)
 	if err == nil {
 		cfg := a.configManager.Get()
-		cfg.WindowsAutoStart = enable
+		cfg.AutoStart = enable
 		a.configManager.Update(cfg)
 
 		// 广播配置更新

@@ -52,8 +52,8 @@ const (
 	ReqTestBridgeProgram      RequestType = "TestBridgeProgram"
 	ReqGetBridgeProgramStatus RequestType = "GetBridgeProgramStatus"
 
-	ReqSetWindowsAutoStart    RequestType = "SetWindowsAutoStart"
-	ReqCheckWindowsAutoStart  RequestType = "CheckWindowsAutoStart"
+	ReqSetLinuxAutoStart      RequestType = "SetLinuxAutoStart"
+	ReqCheckLinuxAutoStart    RequestType = "CheckLinuxAutoStart"
 	ReqIsRunningAsAdmin       RequestType = "IsRunningAsAdmin"
 	ReqGetAutoStartMethod     RequestType = "GetAutoStartMethod"
 	ReqSetAutoStartWithMethod RequestType = "SetAutoStartWithMethod"

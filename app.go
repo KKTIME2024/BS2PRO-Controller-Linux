@@ -507,9 +507,10 @@ func (a *App) GetBridgeProgramStatus() map[string]any {
 	return status
 }
 
-// SetWindowsAutoStart 设置Windows开机自启动
-func (a *App) SetWindowsAutoStart(enable bool) error {
-	resp, err := a.sendRequest(ipc.ReqSetWindowsAutoStart, ipc.SetBoolParams{Enabled: enable})
+// SetLinuxAutoStart 设置Linux开机自启动
+
+func (a *App) SetLinuxAutoStart(enable bool) error {
+	resp, err := a.sendRequest(ipc.ReqSetLinuxAutoStart, ipc.SetBoolParams{Enabled: enable})
 	if err != nil {
 		return err
 	}
@@ -553,9 +554,10 @@ func (a *App) SetAutoStartWithMethod(enable bool, method string) error {
 	return nil
 }
 
-// CheckWindowsAutoStart 检查Windows开机自启动状态
-func (a *App) CheckWindowsAutoStart() bool {
-	resp, err := a.sendRequest(ipc.ReqCheckWindowsAutoStart, nil)
+// CheckLinuxAutoStart 检查Linux开机自启动状态
+
+func (a *App) CheckLinuxAutoStart() bool {
+	resp, err := a.sendRequest(ipc.ReqCheckLinuxAutoStart, nil)
 	if err != nil {
 		return false
 	}
