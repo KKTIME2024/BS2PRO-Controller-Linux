@@ -360,11 +360,13 @@ func (b *BLEManager) WriteCommand(cmd []byte) error {
 	// 优先使用 WriteWithoutResponse（抓包显示 BS1 使用 Write Command 0x52）
 	_, err := b.writeChar.WriteWithoutResponse(cmd)
 	if err != nil {
-		// 回退到 Write with Response
-		_, err2 := b.writeChar.Write(cmd)
+		// 回退到 Read 检查连接状态
+		_, err2 := b.writeChar.Read(nil)
 		if err2 != nil {
-			return fmt.Errorf("BLE 写入失败: WriteWithoutResponse=%v, Write=%v", err, err2)
+			return fmt.Errorf("BLE 写入失败: WriteWithoutResponse=%v, Read=%v", err, err2)
 		}
+		// 如果 Read 成功但 WriteWithoutResponse 失败，可能是特性不支持
+		return fmt.Errorf("BLE 写入失败，特性不支持 WriteWithoutResponse: %v", err)
 	}
 	return nil
 }

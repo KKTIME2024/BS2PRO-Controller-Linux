@@ -1,0 +1,12 @@
+[Unit]
+Description=BS2PRO Controller Core Service
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/BS2PRO-Core --autostart
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

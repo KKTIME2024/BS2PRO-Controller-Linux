@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/TIANLI0/BS2PRO-Controller/internal/ipc"
@@ -76,19 +75,14 @@ func ensureCoreServiceRunning() bool {
 	}
 
 	exeDir := filepath.Dir(exePath)
-	corePath := filepath.Join(exeDir, "BS2PRO-Core.exe")
+	corePath := filepath.Join(exeDir, "BS2PRO-Core")
 
-	// 检查核心服务是否存在
 	if _, err := os.Stat(corePath); os.IsNotExist(err) {
 		mainLogger.Errorf("核心服务程序不存在: %s", corePath)
 		return false
 	}
 
-	// 启动核心服务
 	cmd := exec.Command(corePath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x08000000, // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-	}
 
 	if err := cmd.Start(); err != nil {
 		mainLogger.Errorf("启动核心服务失败: %v", err)

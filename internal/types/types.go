@@ -128,7 +128,7 @@ type AppConfig struct {
 	ActiveFanCurveProfileID  string             `json:"activeFanCurveProfileId"`  // 当前激活曲线方案ID
 	GearLight                bool               `json:"gearLight"`                // 挡位灯
 	PowerOnStart             bool               `json:"powerOnStart"`             // 通电自启动
-	WindowsAutoStart         bool               `json:"windowsAutoStart"`         // Windows开机自启动
+	AutoStart                bool               `json:"autoStart"`                // 开机自启动（Linux使用桌面文件）
 	SmartStartStop           string             `json:"smartStartStop"`           // 智能启停
 	Brightness               int                `json:"brightness"`               // 亮度
 	TempUpdateRate           int                `json:"tempUpdateRate"`           // 温度更新频率(秒)
@@ -321,7 +321,7 @@ func GetDefaultConfig(isAutoStart bool) AppConfig {
 		ActiveFanCurveProfileID: "default",
 		GearLight:               true,
 		PowerOnStart:            false,
-		WindowsAutoStart:        false,
+		AutoStart:               false,
 		SmartStartStop:          "off",
 		Brightness:              100,
 		TempUpdateRate:          2,

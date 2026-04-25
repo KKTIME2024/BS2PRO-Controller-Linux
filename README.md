@@ -97,8 +97,6 @@ sudo pacman -S make
 
 ## 快速开始
 
-### 1. 克隆项目
-
 ```bash
 git clone https://github.com/KKTIME2024/BS2PRO-Controller-Linux.git
 cd BS2PRO-Controller-Linux
@@ -193,6 +191,13 @@ BS2PRO-Controller-Linux/
 - ❌ `cmd/core/winres/` - Windows 资源文件
 - ❌ `build/windows/` - Windows 安装资源
 
+### 已移除的 Windows 特定组件
+- ❌ `build.bat` - Windows 构建脚本
+- ❌ `build_bridge.bat` - 桥接程序构建脚本  
+- ❌ `bridge/TempBridge/` - C# 温度桥接程序
+- ❌ `cmd/core/winres/` - Windows 资源文件
+- ❌ `build/windows/` - Windows 安装资源
+
 ## 使用说明
 
 ### 首次运行（Linux）
@@ -221,9 +226,6 @@ BS2PRO-Controller-Linux/
 ### 温度监控
 
 程序支持多种温度监控方式：
-
-1. **TempBridge**：通过 C# 桥接程序获取系统温度
-
 
 ### 系统托盘
 
@@ -262,9 +264,6 @@ BS2PRO-Controller-Linux/
 4. 查看日志文件排查具体错误
 
 ### 温度无法显示？
-1. 检查温度数据源设置
-2. 如使用 TempBridge，确保 `bridge` 目录下的文件完整
-3. 如使用 AIDA64/HWiNFO，确保软件正在运行并开启了共享内存功能
 
 ### 开机自启无效？（Linux）
 1. 检查 systemd 用户服务是否启用：`systemctl --user status bs2pro-controller`
@@ -273,8 +272,7 @@ BS2PRO-Controller-Linux/
 
 ## 构建说明
 
-### 版本号管理
-
+版本号在 `wails.json` 的 `info.productVersion` 字段中定义，构建脚本会自动读取并嵌入到程序中。
 版本号在 `wails.json` 的 `info.productVersion` 字段中定义，构建脚本会自动读取并嵌入到程序中。
 
 ### Linux 构建标志
