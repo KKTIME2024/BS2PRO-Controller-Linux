@@ -368,6 +368,54 @@ make user-install
 make install-systemd
 ```
 
+### 发行版打包
+
+#### Arch Linux (AUR)
+
+已提供 `PKGBUILD` 文件，支持通过 AUR 安装：
+
+```bash
+# 使用 AUR helper (如 yay)
+yay -S bs2pro-controller
+
+# 或手动构建
+makepkg -si
+```
+
+#### Debian/Ubuntu (DEB 包)
+
+构建 DEB 包：
+```bash
+./scripts/build-deb.sh
+```
+
+安装：
+```bash
+sudo dpkg -i build/deb/bs2pro-controller_*.deb
+```
+
+#### Fedora/RHEL/CentOS (RPM 包)
+
+构建 RPM 包：
+```bash
+./scripts/build-rpm.sh
+```
+
+安装：
+```bash
+sudo rpm -i build/rpm/bs2pro-controller-*.rpm
+```
+
+#### 打包特性
+
+所有打包版本包含：
+- ✅ 预编译的二进制文件
+- ✅ systemd 用户服务
+- ✅ udev 规则（HID 设备访问）
+- ✅ 桌面菜单项
+- ✅ 安装和卸载脚本
+- ✅ 完整的文档
+
 #### 安装脚本功能：
 - ✅ **systemd 用户服务**：后台运行，开机自启
 - ✅ **udev 规则**：自动配置 HID 设备权限
