@@ -4,7 +4,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/BS2PRO-Core --autostart
+ExecStart=%H/.local/bin/BS2PRO-Core --autostart
 Restart=on-failure
 RestartSec=5
 

@@ -179,7 +179,7 @@ def main():
         print("❌ 基础通信有问题")
 
     print("\n🔍 HID通信技术细节:")
-    print("   1. 设备路径: /dev/hidraw7")
+    print("   1. 设备路径: 动态检测(如/dev/hidraw6)")
     print("   2. Vendor ID: 0x37D7")
     print("   3. Product ID: 0x1001")
     print("   4. 权限: 666 (正确)")

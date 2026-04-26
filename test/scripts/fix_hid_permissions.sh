@@ -1,8 +1,8 @@
 #!/bin/bash
 echo "===== 修复HID设备权限脚本 ====="
 echo ""
-echo "当前设备权限:"
-ls -la /dev/hidraw7
+echo "当前HID设备权限:"
+ls -la /dev/hidraw* 2>/dev/null || echo "未找到hidraw设备"
 echo ""
 echo "用户组信息:"
 id
@@ -29,7 +29,7 @@ fi
 echo ""
 echo "3. 查看更新后的权限"
 sleep 2
-ls -la /dev/hidraw7
+ls -la /dev/hidraw* 2>/dev/null || echo "未找到hidraw设备"
 
 echo ""
 echo "4. 测试设备连接"

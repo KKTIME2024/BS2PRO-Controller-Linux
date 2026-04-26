@@ -22,30 +22,74 @@ def test_bs2_connection():
         print("请安装: pip install hidapi 或 sudo pacman -S python-hidapi")
         return False
 
-    # 检查设备是否存在
-    device_path = "/dev/hidraw7"
-    if not os.path.exists(device_path):
-        print(f"❌ 设备路径不存在: {device_path}")
-        print("请确保BS2设备已连接并开机")
+    # 动态查找BS2设备
+    print("\n搜索BS2设备...")
+    bs2_devices = []
+
+    try:
+        for device_info in hid.enumerate():
+            vendor_id = device_info.get("vendor_id", 0)
+            if vendor_id == 0x37D7:  # Flydigi设备
+                product_id = device_info.get("product_id", 0)
+                device_name = (
+                    f"BS2PRO"
+                    if product_id == 0x1002
+                    else f"BS2"
+                    if product_id == 0x1001
+                    else f"未知(0x{product_id:04X})"
+                )
+                path = device_info.get("path", "")
+                bs2_devices.append((vendor_id, product_id, device_name, path))
+    except Exception as e:
+        print(f"❌ 设备枚举失败: {e}")
         return False
 
-    # 检查权限
-    try:
-        import stat
+    if not bs2_devices:
+        print("❌ 未找到BS2设备 (VID:0x37D7)")
+        print("请确保BS2设备已连接并开机")
 
-        mode = os.stat(device_path).st_mode
-        print(f"设备权限: {oct(mode)[-3:]}")
-        if mode & stat.S_IROTH and mode & stat.S_IWOTH:
-            print("✅ 设备有读写权限")
-        else:
-            print("❌ 设备权限不足，需要666权限")
-            print("  请运行:")
-            print("  sudo chmod 666 /dev/hidraw7")
-    except Exception as e:
-        print(f"权限检查错误: {e}")
+        # 检查是否有hidraw设备但枚举未找到
+        import glob
+
+        hidraw_devices = glob.glob("/dev/hidraw*")
+        if hidraw_devices:
+            print(f"\n发现hidraw设备 (总数: {len(hidraw_devices)}):")
+            for dev_path in hidraw_devices[:5]:  # 显示前5个
+                try:
+                    import stat
+
+                    mode = os.stat(dev_path).st_mode
+                    perms = oct(mode)[-3:]
+                    print(f"  {dev_path}: 权限 {perms}")
+                except:
+                    print(f"  {dev_path}")
+        return False
+
+    # 使用找到的第一个BS2设备
+    vendor_id, product_id, device_name, path = bs2_devices[0]
+    print(f"✅ 找到 {device_name} 设备:")
+    print(f"  厂商ID: 0x{vendor_id:04X}")
+    print(f"  产品ID: 0x{product_id:04X} ({device_name})")
+    print(f"  路径: {path}")
+
+    # 检查权限（如果使用路径）
+    if path and os.path.exists(path):
+        try:
+            import stat
+
+            mode = os.stat(path).st_mode
+            print(f"  设备权限: {oct(mode)[-3:]}")
+            if mode & stat.S_IROTH and mode & stat.S_IWOTH:
+                print("  ✅ 设备有读写权限")
+            else:
+                print("  ❌ 设备权限不足，需要666权限")
+                print(f"  请运行: sudo chmod 666 {path}")
+                print("  或检查udev规则是否正确配置")
+        except Exception as e:
+            print(f"  权限检查错误: {e}")
 
     # 尝试连接设备
-    print("\n尝试连接BS2设备 (0x37D7:0x1001)...")
+    print(f"\n尝试连接{device_name}设备...")
 
     try:
         # 方法1: 使用已知的vendor/product ID
@@ -129,11 +173,11 @@ def test_bs2_connection():
     except Exception as e:
         print(f"❌ 连接失败: {e}")
         print("\n建议的调试步骤:")
-        print("1. 检查设备权限: ls -la /dev/hidraw7")
+        print("1. 检查设备权限: ls -la /dev/hidraw*")
         print("2. 重新加载udev规则:")
         print("   sudo udevadm control --reload-rules")
         print("   sudo udevadm trigger")
-        print("3. 临时修复权限: sudo chmod 666 /dev/hidraw7")
+        print("3. 临时修复权限: sudo chmod 666 /dev/hidraw*")
         print("4. 验证设备状态: lsusb | grep 37d7")
         return False
 
@@ -156,7 +200,7 @@ def main():
         print("❌ 测试失败，请检查权限和设备连接")
         print("\n检查清单:")
         print("1. ✅ 设备识别: lsusb | grep 37d7")
-        print("2. ❌ 用户权限: sudo chmod 666 /dev/hidraw7")
+        print("2. ❌ 用户权限: 检查/dev/hidraw*权限应为666")
         print(
             "3. 🔄 udev规则: sudo udevadm control --reload-rules && sudo udevadm trigger"
         )

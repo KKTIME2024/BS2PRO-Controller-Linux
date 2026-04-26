@@ -65,7 +65,7 @@ sensors | grep -E "Core|Package|temp" | head -5
 
 echo ""
 echo "6. 使用建议:"
-echo "   - 如连接失败，运行: sudo chmod 666 /dev/hidraw7"
+echo "   - 如连接失败，运行: sudo chmod 666 /dev/hidraw*"
 echo "   - 重新加载udev规则: sudo udevadm control --reload-rules"
 echo "   - 详细测试: python3 scripts/hid_controller.py"
 echo "   - 重启后测试流程见: HARDWARE_TEST_README.md"

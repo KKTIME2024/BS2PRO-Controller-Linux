@@ -182,8 +182,8 @@ func (a *CoreApp) Start() error {
 		a.logInfo("从配置文件同步调试模式: 启用")
 	}
 
-	// 检查并同步Windows自启动状态
-	a.logInfo("检查Windows自启动状态")
+	// 检查并同步Linux自启动状态
+	a.logInfo("检查Linux自启动状态")
 	actualAutoStart := a.autostartManager.CheckLinuxAutoStart()
 	if actualAutoStart != cfg.AutoStart {
 		cfg.AutoStart = actualAutoStart
@@ -572,8 +572,8 @@ func (a *CoreApp) handleIPCRequest(req ipc.Request) ipc.Response {
 		status := a.tempReader.GetBridgeStatus()
 		return a.dataResponse(status)
 
-	// 自启动相关
-case ipc.ReqSetLinuxAutoStart:
+		// 自启动相关
+	case ipc.ReqSetLinuxAutoStart:
 		var params ipc.SetBoolParams
 		if err := json.Unmarshal(req.Data, &params); err != nil {
 			return a.errorResponse("解析参数失败: " + err.Error())

@@ -6,11 +6,11 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/BS2PRO-Core --autostart
+ExecStart=%H/.local/bin/BS2PRO-Core --autostart
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=%h/.Xauthority
+Environment=XAUTHORITY=%H/.Xauthority
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
 StandardOutput=journal
 StandardError=journal
