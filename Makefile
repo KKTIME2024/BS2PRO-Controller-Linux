@@ -1,4 +1,4 @@
-.PHONY: all build build-core build-gui dev run clean install uninstall test
+.PHONY: all build build-core build-gui dev run clean install uninstall test setup-webkit-compat
 
 APP_NAME    := BS2PRO-Controller
 CORE_NAME   := BS2PRO-Core
@@ -7,9 +7,24 @@ BUILD_DIR   := build/bin
 GO_FLAGS    := -ldflags "-X github.com/TIANLI0/BS2PRO-Controller/internal/version.BuildVersion=$(VERSION)"
 GO_FLAGS_CORE := -ldflags "-X github.com/TIANLI0/BS2PRO-Controller/internal/version.BuildVersion=$(VERSION) -s -w"
 
-all: build
+# Arch Linux: webkit2gtk-4.0 was removed, only 4.1 is available.
+# Wails v2.12 requires -4.0, so we provide a compat .pc file.
+WEBKIT_COMPAT_DIR := $(HOME)/.local/share/pkgconfig
+PKG_CONFIG_PATH   := $(WEBKIT_COMPAT_DIR):$(PKG_CONFIG_PATH)
+CGO_LDFLAGS       := -ljavascriptcoregtk-4.1
+export PKG_CONFIG_PATH
+export CGO_LDFLAGS
 
-build: build-core build-gui
+all: setup-webkit-compat build
+
+build: setup-webkit-compat build-core build-gui
+
+setup-webkit-compat:
+	@mkdir -p $(WEBKIT_COMPAT_DIR)
+	@if [ ! -f "$(WEBKIT_COMPAT_DIR)/webkit2gtk-4.0.pc" ]; then \
+		echo "Creating webkit2gtk-4.0 compat .pc for Arch Linux..."; \
+		printf 'prefix=/usr\nexec_prefix=$${prefix}\nlibdir=/usr/lib\nincludedir=$${prefix}/include\n\nName: WebKitGTK 4.0 (compat via 4.1)\nDescription: Web content engine for GTK (compatibility wrapper)\nVersion: 2.52.0\nRequires: glib-2.0 gtk+-3.0 libsoup-3.0 javascriptcoregtk-4.1\nLibs: -L$${libdir} -lwebkit2gtk-4.1\nCflags: -I$${includedir}/webkitgtk-4.1\n' > $(WEBKIT_COMPAT_DIR)/webkit2gtk-4.0.pc; \
+	fi
 
 build-core:
 	@echo "Building $(CORE_NAME) v$(VERSION)..."
