@@ -4,20 +4,19 @@ go 1.26.0
 
 require (
 	fyne.io/systray v1.12.0
-	github.com/Microsoft/go-winio v0.6.2
 	github.com/gen2brain/beeep v0.11.2
 	github.com/shirou/gopsutil/v4 v4.26.1
 	github.com/sstallion/go-hid v0.15.0
-	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/wailsapp/wails/v2 v2.12.0
 	go.uber.org/zap v1.27.1
 	golang.design/x/hotkey v0.4.1
-	golang.org/x/sys v0.41.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	tinygo.org/x/bluetooth v0.14.0
 )
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast v1.1.2 // indirect
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/esiqveland/notify v0.13.3 // indirect
@@ -63,6 +62,7 @@ require (
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d // indirect
 	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )
 

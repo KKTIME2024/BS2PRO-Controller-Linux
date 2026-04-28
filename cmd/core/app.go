@@ -189,9 +189,9 @@ func (a *CoreApp) Start() error {
 		cfg.AutoStart = actualAutoStart
 		a.configManager.Set(cfg)
 		if err := a.configManager.Save(); err != nil {
-			a.logError("同步Windows自启动状态时保存配置失败: %v", err)
+			a.logError("同步Linux自启动状态时保存配置失败: %v", err)
 		} else {
-			a.logInfo("已同步Windows自启动状态: %v", actualAutoStart)
+			a.logInfo("已同步Linux自启动状态: %v", actualAutoStart)
 		}
 	}
 

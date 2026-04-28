@@ -163,7 +163,7 @@ export namespace types {
 	    activeFanCurveProfileId: string;
 	    gearLight: boolean;
 	    powerOnStart: boolean;
-	    windowsAutoStart: boolean;
+	    autoStart: boolean;
 	    smartStartStop: string;
 	    brightness: number;
 	    tempUpdateRate: number;
@@ -195,7 +195,7 @@ export namespace types {
 	        this.activeFanCurveProfileId = source["activeFanCurveProfileId"];
 	        this.gearLight = source["gearLight"];
 	        this.powerOnStart = source["powerOnStart"];
-	        this.windowsAutoStart = source["windowsAutoStart"];
+	        this.autoStart = source["autoStart"];
 	        this.smartStartStop = source["smartStartStop"];
 	        this.brightness = source["brightness"];
 	        this.tempUpdateRate = source["tempUpdateRate"];
