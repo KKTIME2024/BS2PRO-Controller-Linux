@@ -18,16 +18,18 @@
 
 ### 当前状态
 - ✅ 基础代码移植完成
-- ✅ IPC 层重构完成（使用 Unix 域套接字）
+- ✅ IPC 层重构完成（Unix 域套接字）
 - ✅ Linux 原生温度监控系统完成
 - ✅ Linux 系统集成完成（systemd, desktop, udev）
 - ✅ 构建系统和安装脚本完善
 - ✅ GUI 构建成功（Wails v2.12 + Next.js 16, 2026-04-28 验证）
 - ✅ 设备连接与数据监控正常（HID/USB 路径, 2026-04-25 硬件验证）
+- ✅ 前端 Linux 适配完成（文案修正、自启动迁移、设备选择 UI、连接进度, 2026-04-30）
+- ✅ Go 单元测试与 CI/CD 就绪（28 tests, GitHub Actions, 2026-04-30）
 - ❌ **HID 控制命令无效（P0 阻断）**：硬件不响应挡位/风扇/灯带控制命令
 - ❌ BLE 路径不可用：BS1 设备暂不支持 Linux（BlueZ 兼容性问题）
 - 📋 详细测试报告见 [docs/2026-04-29_test-report_gui-integration.md](docs/2026-04-29_test-report_gui-integration.md)
-- 📊 硬件测试结果见 [docs/2026-04-25_test-report_hardware-bs2.md](docs/2026-04-25_test-report_hardware-bs2.md)
+- 📋 开发计划见 [docs/NEXT-STEPS-PLAN.md](docs/NEXT-STEPS-PLAN.md)
 
 ## 功能特性
 
