@@ -164,9 +164,9 @@ bash test/scripts/verify_after_reboot.sh
 ```
 
 ### 测试文档
-- `docs/HARDWARE_TEST_STATUS.md` - 硬件测试完整报告
-- `docs/HARDWARE_TEST_SUCCESS_SUMMARY.md` - 成功总结
-- `docs/HARDWARE_TEST_README.md` - 测试流程指南
+- `docs/2026-04-29_test-report_gui-integration.md` - GUI集成测试报告（最新，含已知问题）
+- `docs/2026-04-25_test-report_hardware-bs2.md` - 硬件测试完整报告
+- `docs/guide_hardware-test.md` - 测试流程指南
 
 ## 发行版打包
 ### 支持格式

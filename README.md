@@ -22,10 +22,12 @@
 - ✅ Linux 原生温度监控系统完成
 - ✅ Linux 系统集成完成（systemd, desktop, udev）
 - ✅ 构建系统和安装脚本完善
-- ✅✅✅ **硬件连接测试完全成功** (2026-04-25 验证)
-- ✅ 双向通信验证通过 (发送/接收/物理响应)
-- 📋 详细开发计划见 [LINUX-PORT-PLAN.md](LINUX-PORT-PLAN.md)
-- 📊 硬件测试结果见 [docs/HARDWARE_TEST_STATUS.md](docs/HARDWARE_TEST_STATUS.md)
+- ✅ GUI 构建成功（Wails v2.12 + Next.js 16, 2026-04-28 验证）
+- ✅ 设备连接与数据监控正常（HID/USB 路径, 2026-04-25 硬件验证）
+- ❌ **HID 控制命令无效（P0 阻断）**：硬件不响应挡位/风扇/灯带控制命令
+- ❌ BLE 路径不可用：BS1 设备暂不支持 Linux（BlueZ 兼容性问题）
+- 📋 详细测试报告见 [docs/2026-04-29_test-report_gui-integration.md](docs/2026-04-29_test-report_gui-integration.md)
+- 📊 硬件测试结果见 [docs/2026-04-25_test-report_hardware-bs2.md](docs/2026-04-25_test-report_hardware-bs2.md)
 
 ## 功能特性
 
@@ -236,13 +238,6 @@ BS2PRO-Controller-Linux/
 - ❌ `cmd/core/winres/` - Windows 资源文件
 - ❌ `build/windows/` - Windows 安装资源
 
-### 已移除的 Windows 特定组件
-- ❌ `build.bat` - Windows 构建脚本
-- ❌ `build_bridge.bat` - 桥接程序构建脚本  
-- ❌ `bridge/TempBridge/` - C# 温度桥接程序
-- ❌ `cmd/core/winres/` - Windows 资源文件
-- ❌ `build/windows/` - Windows 安装资源
-
 ## 📊 硬件测试验证
 
 本项目已通过全面的硬件连接测试，验证了BS2设备在Linux下的完全支持：
@@ -271,9 +266,22 @@ bash test/scripts/verify_after_reboot.sh
 ```
 
 ### 📁 测试文档
-- [硬件测试完整报告](docs/HARDWARE_TEST_STATUS.md)
-- [硬件测试成功总结](docs/HARDWARE_TEST_SUCCESS_SUMMARY.md)
-- [测试流程指南](docs/HARDWARE_TEST_README.md)
+- [Linux 移植手动测试报告（最新）](docs/2026-04-29_test-report_gui-integration.md)
+- [硬件测试完整报告](docs/2026-04-25_test-report_hardware-bs2.md)
+- [测试流程指南](docs/guide_hardware-test.md)
+
+## ⚠️ 已知问题
+
+> 详见 [Linux 移植手动测试报告](docs/2026-04-29_test-report_gui-integration.md) (2026-04-29)
+
+| # | 问题 | 严重级别 | 位置 |
+|---|------|---------|------|
+| 1 | HID 控制命令无效：硬件不响应挡位/风扇/灯带控制 | **P0 阻断** | `internal/device/device.go` |
+| 2 | BLE 在 Linux 上不可用（BS1 设备） | P1 | `internal/device/ble.go` |
+| 3 | UI 文案仅提及"蓝牙"，缺少 USB 有线连接指引 | P1 | `DeviceStatus.tsx:255,336` |
+| 4 | 亮度控制仅支持二值（0%/100%） | P2 | `device.go:753-764` |
+| 5 | 缺少设备类型选择 UI（USB vs BLE） | P2 | `DeviceStatus.tsx` |
+| 6 | Windows 自启动引用残留 | P3 | `ControlPanel.tsx:394-400` |
 
 ## 使用说明
 
