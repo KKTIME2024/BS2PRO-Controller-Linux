@@ -16,6 +16,9 @@ import {
   Power,
   ShieldCheck,
   Sparkles,
+  Usb,
+  Bluetooth,
+  Loader2,
 } from 'lucide-react';
 import { types } from '../../../wailsjs/go/models';
 import { apiService } from '../services/api';
@@ -31,7 +34,7 @@ interface DeviceStatusProps {
   fanData: types.FanData | null;
   temperature: types.TemperatureData | null;
   config: types.AppConfig;
-  onConnect: () => void;
+  onConnect: () => Promise<void>;
   onDisconnect: () => void;
   onConfigChange: (config: types.AppConfig) => void;
 }
@@ -139,7 +142,23 @@ export default function DeviceStatus({
 }: DeviceStatusProps) {
   const [bridgeWarningReady, setBridgeWarningReady] = useState(false);
   const [activeCurveProfileName, setActiveCurveProfileName] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<'auto' | 'usb' | 'ble'>('auto');
+  const [connectTimeout, setConnectTimeout] = useState(false);
   const hasBridgeWarning = isConnected && temperature?.bridgeOk === false;
+
+  useEffect(() => {
+    if (isConnected) {
+      setConnecting(false);
+      setConnectTimeout(false);
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    if (!connecting) { setConnectTimeout(false); return; }
+    const timer = setTimeout(() => setConnectTimeout(true), 12000);
+    return () => clearTimeout(timer);
+  }, [connecting]);
 
   useEffect(() => {
     if (!hasBridgeWarning) {
@@ -181,6 +200,18 @@ export default function DeviceStatus({
       onConfigChange(types.AppConfig.createFrom({ ...config, autoControl: enabled }));
     } catch (err) {
       console.error('设置智能变频失败:', err);
+    }
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    setConnectTimeout(false);
+    try {
+      await onConnect();
+    } catch {
+      // Connection failure handled by parent via isConnected staying false
+    } finally {
+      // isConnected change will clear connecting via useEffect
     }
   };
 
@@ -266,12 +297,40 @@ export default function DeviceStatus({
                 color="blue"
               />
             )}
+            {!isConnected && !connecting && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-muted p-0.5">
+                {(['auto', 'usb', 'ble'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setConnectionMode(mode)}
+                    className={clsx(
+                      'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                      connectionMode === mode
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {mode === 'auto' ? '自动' : mode === 'usb' ? 'USB' : '蓝牙'}
+                  </button>
+                ))}
+              </div>
+            )}
             <Button
               variant={isConnected ? 'secondary' : 'primary'}
               size="md"
-              onClick={isConnected ? onDisconnect : onConnect}
+              disabled={connecting}
+              onClick={isConnected ? onDisconnect : handleConnect}
             >
-              {isConnected ? '断开' : '连接'}
+              {connecting ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  连接中…
+                </span>
+              ) : isConnected ? (
+                '断开'
+              ) : (
+                '连接'
+              )}
             </Button>
           </div>
         </div>
@@ -334,8 +393,14 @@ export default function DeviceStatus({
           </div>
           <h3 className="mb-1.5 text-lg font-semibold">设备未连接</h3>
           <p className="mb-5 text-base text-muted-foreground">请将散热器通过 USB 或蓝牙连接到电脑</p>
-          <Button onClick={onConnect} size="md" icon={<RotateCw className="h-4 w-4" />}>
-            连接设备
+          {connectTimeout && (
+            <p className="mb-3 text-sm text-amber-500">
+              连接超时，请检查设备是否正确连接并已上电
+            </p>
+          )}
+          <Button onClick={handleConnect} size="md" disabled={connecting}
+            icon={connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}>
+            {connecting ? '连接中…' : '连接设备'}
           </Button>
         </motion.div>
       )}
