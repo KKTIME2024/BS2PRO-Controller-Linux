@@ -23,9 +23,9 @@ import {
   GetDebugInfo,
   SetDebugMode,
   UpdateGuiResponseTime,
-  SetCustomSpeed
-  // CheckWindowsAutoStart,
-  // SetWindowsAutoStart
+  SetCustomSpeed,
+  SetLinuxAutoStart,
+  CheckLinuxAutoStart
 } from '../../../wailsjs/go/main/App';
 
 import { types } from '../../../wailsjs/go/models';
@@ -135,25 +135,13 @@ class ApiService {
     return await SetLightStrip(config);
   }
 
-  // Windows自启动相关
-  async checkWindowsAutoStart(): Promise<boolean> {
-    // 临时使用window对象调用，等Wails生成绑定后更新
-    return await (window as any).go?.main?.App?.CheckWindowsAutoStart();
+  // Linux自启动
+  async checkLinuxAutoStart(): Promise<boolean> {
+    return await CheckLinuxAutoStart();
   }
 
-  async setWindowsAutoStart(enabled: boolean): Promise<void> {
-    // 临时使用window对象调用，等Wails生成绑定后更新
-    return await (window as any).go?.main?.App?.SetWindowsAutoStart(enabled);
-  }
-
-  async getAutoStartMethod(): Promise<string> {
-    // 获取当前自启动方式
-    return await (window as any).go?.main?.App?.GetAutoStartMethod();
-  }
-
-  async setAutoStartWithMethod(enabled: boolean, method: string): Promise<void> {
-    // 使用指定方式设置自启动
-    return await (window as any).go?.main?.App?.SetAutoStartWithMethod(enabled, method);
+  async setLinuxAutoStart(enabled: boolean): Promise<void> {
+    return await SetLinuxAutoStart(enabled);
   }
 
   async isRunningAsAdmin(): Promise<boolean> {

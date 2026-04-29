@@ -47,7 +47,7 @@ export interface AppConfig {
   activeFanCurveProfileId?: string;
   gearLight: boolean;          // 挡位灯
   powerOnStart: boolean;       // 通电自启动
-  windowsAutoStart: boolean;   // Windows开机自启动
+  linuxAutoStart: boolean;   // Linux开机自启动
   smartStartStop: string;      // 智能启停
   brightness: number;          // 亮度
   tempUpdateRate: number;      // 温度更新频率(秒)
@@ -97,7 +97,7 @@ export interface DebugInfo {
 }
 
 // 自启动方式
-export type AutoStartMethod = 'none' | 'task_scheduler' | 'registry';
+export type AutoStartMethod = 'none' | 'desktop';
 
 // 自启动信息
 export interface AutoStartInfo {

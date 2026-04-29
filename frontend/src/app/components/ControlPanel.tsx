@@ -391,14 +391,12 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
     } catch { /* noop */ } finally { setLoading('powerOnStart', false); }
   }, [config, onConfigChange, isConnected]);
 
-  const handleWindowsAutoStartChange = useCallback(async (enabled: boolean) => {
-    setLoading('windowsAutoStart', true);
+  const handleLinuxAutoStartChange = useCallback(async (enabled: boolean) => {
+    setLoading('linuxAutoStart', true);
     try {
-      const isAdmin = await apiService.isRunningAsAdmin();
-      if (enabled) await apiService.setAutoStartWithMethod(true, isAdmin ? 'task_scheduler' : 'registry');
-      else await apiService.setAutoStartWithMethod(false, '');
-      onConfigChange(types.AppConfig.createFrom({ ...config, windowsAutoStart: enabled }));
-    } catch (e) { alert(`设置自启动失败: ${e}`); } finally { setLoading('windowsAutoStart', false); }
+      await apiService.setLinuxAutoStart(enabled);
+      onConfigChange(types.AppConfig.createFrom({ ...config, linuxAutoStart: enabled }));
+    } catch (e) { alert(`设置自启动失败: ${e}`); } finally { setLoading('linuxAutoStart', false); }
   }, [config, onConfigChange]);
 
   const handleIgnoreDeviceOnReconnectChange = useCallback(async (enabled: boolean) => {
@@ -955,15 +953,15 @@ export default function ControlPanel({ config, onConfigChange, isConnected, fanD
           </div>
 
           <SettingRow
-            icon={<Monitor className={clsx('h-4 w-4', config.windowsAutoStart ? 'text-emerald-500' : '')} />}
+            icon={<Monitor className={clsx('h-4 w-4', config.linuxAutoStart ? 'text-emerald-500' : '')} />}
             title="开机自启动"
-            description="Windows 启动时自动运行"
-            tip="以管理员身份运行可避免每次 UAC 授权"
+            description="系统启动时自动运行"
+            tip="通过 XDG desktop 文件实现，无需 root 权限"
           >
             <ToggleSwitch
-              enabled={config.windowsAutoStart}
-              onChange={handleWindowsAutoStartChange}
-              loading={loadingStates.windowsAutoStart}
+              enabled={config.linuxAutoStart}
+              onChange={handleLinuxAutoStartChange}
+              loading={loadingStates.linuxAutoStart}
               size="sm"
               color="green"
             />

@@ -252,7 +252,7 @@ export default function DeviceStatus({
                   <span>{modeTitle} · {modeDesc}</span>
                 </div>
               )}
-              {!isConnected && <p className="mt-0.5 text-sm text-muted-foreground">等待蓝牙连接…</p>}
+              {!isConnected && <p className="mt-0.5 text-sm text-muted-foreground">等待设备连接…</p>}
             </div>
           </div>
 
@@ -333,7 +333,7 @@ export default function DeviceStatus({
             <Wifi className="h-7 w-7 text-muted-foreground" />
           </div>
           <h3 className="mb-1.5 text-lg font-semibold">设备未连接</h3>
-          <p className="mb-5 text-base text-muted-foreground">请将散热器通过蓝牙连接到电脑</p>
+          <p className="mb-5 text-base text-muted-foreground">请将散热器通过 USB 或蓝牙连接到电脑</p>
           <Button onClick={onConnect} size="md" icon={<RotateCw className="h-4 w-4" />}>
             连接设备
           </Button>
