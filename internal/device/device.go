@@ -447,7 +447,7 @@ func (m *Manager) SetFanSpeed(rpm int) bool {
 	}
 
 	// 首先进入实时转速模式
-	enterModeCmd := []byte{0x02, 0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
+	enterModeCmd := []byte{0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
 	// 补齐到23字节
 	enterModeCmd = append(enterModeCmd, make([]byte, 23-len(enterModeCmd))...)
 
@@ -466,7 +466,7 @@ func (m *Manager) SetFanSpeed(rpm int) bool {
 	// 计算校验和
 	checksum := (0x5A + 0xA5 + 0x21 + 0x04 + int(speedBytes[0]) + int(speedBytes[1]) + 1) & 0xFF
 
-	cmd := []byte{0x02, 0x5A, 0xA5, 0x21, 0x04}
+	cmd := []byte{0x5A, 0xA5, 0x21, 0x04}
 	cmd = append(cmd, speedBytes...)
 	cmd = append(cmd, byte(checksum))
 	// 补齐到23字节
@@ -501,7 +501,7 @@ func (m *Manager) SetCustomFanSpeed(rpm int) bool {
 
 	m.logWarn("警告：设置自定义转速 %d RPM（无上下限限制）", rpm)
 
-	enterModeCmd := []byte{0x02, 0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
+	enterModeCmd := []byte{0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
 	enterModeCmd = append(enterModeCmd, make([]byte, 23-len(enterModeCmd))...)
 
 	_, err := m.device.Write(enterModeCmd)
@@ -518,7 +518,7 @@ func (m *Manager) SetCustomFanSpeed(rpm int) bool {
 	// 计算校验和
 	checksum := (0x5A + 0xA5 + 0x21 + 0x04 + int(speedBytes[0]) + int(speedBytes[1]) + 1) & 0xFF
 
-	cmd := []byte{0x02, 0x5A, 0xA5, 0x21, 0x04}
+	cmd := []byte{0x5A, 0xA5, 0x21, 0x04}
 	cmd = append(cmd, speedBytes...)
 	cmd = append(cmd, byte(checksum))
 	cmd = append(cmd, make([]byte, 23-len(cmd))...)
@@ -547,7 +547,7 @@ func (m *Manager) EnterAutoMode() error {
 	}
 
 	// 发送进入实时转速模式的命令
-	enterModeCmd := []byte{0x02, 0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
+	enterModeCmd := []byte{0x5A, 0xA5, 0x23, 0x02, 0x25, 0x00}
 	// 补齐到23字节
 	enterModeCmd = append(enterModeCmd, make([]byte, 23-len(enterModeCmd))...)
 
@@ -611,10 +611,7 @@ func (m *Manager) SetManualGear(gear, level string) bool {
 		return false
 	}
 
-	// 发送命令，确保第一个字节是ReportID
-	cmdWithReportID := append([]byte{0x02}, selectedCommand.Command...)
-
-	_, err := m.device.Write(cmdWithReportID)
+	_, err := m.device.Write(selectedCommand.Command)
 	if err != nil {
 		m.logError("设置挡位 %s %s 失败: %v", gear, level, err)
 		return false
@@ -640,9 +637,9 @@ func (m *Manager) SetGearLight(enabled bool) bool {
 
 	var cmd []byte
 	if enabled {
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x48, 0x03, 0x01, 0x4C}
+		cmd = []byte{0x5A, 0xA5, 0x48, 0x03, 0x01, 0x4C}
 	} else {
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x48, 0x03, 0x00, 0x4B}
+		cmd = []byte{0x5A, 0xA5, 0x48, 0x03, 0x00, 0x4B}
 	}
 
 	// 补齐到23字节
@@ -676,9 +673,9 @@ func (m *Manager) SetPowerOnStart(enabled bool) bool {
 
 	var cmd []byte
 	if enabled {
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x0C, 0x03, 0x02, 0x11}
+		cmd = []byte{0x5A, 0xA5, 0x0C, 0x03, 0x02, 0x11}
 	} else {
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x0C, 0x03, 0x01, 0x10}
+		cmd = []byte{0x5A, 0xA5, 0x0C, 0x03, 0x01, 0x10}
 	}
 
 	// 补齐到23字节
@@ -710,11 +707,11 @@ func (m *Manager) SetSmartStartStop(mode string) bool {
 	var cmd []byte
 	switch mode {
 	case "off":
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x0D, 0x03, 0x00, 0x10}
+		cmd = []byte{0x5A, 0xA5, 0x0D, 0x03, 0x00, 0x10}
 	case "immediate":
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x0D, 0x03, 0x01, 0x11}
+		cmd = []byte{0x5A, 0xA5, 0x0D, 0x03, 0x01, 0x11}
 	case "delayed":
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x0D, 0x03, 0x02, 0x12}
+		cmd = []byte{0x5A, 0xA5, 0x0D, 0x03, 0x02, 0x12}
 	default:
 		return false
 	}
@@ -750,18 +747,17 @@ func (m *Manager) SetBrightness(percentage int) bool {
 	}
 
 	var cmd []byte
-	switch percentage {
-	case 0:
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x47, 0x0D, 0x1C, 0x00, 0xFF}
-		// 补齐到23字节
-		cmd = append(cmd, make([]byte, 23-len(cmd))...)
-	case 100:
-		cmd = []byte{0x02, 0x5A, 0xA5, 0x43, 0x02, 0x45}
-		// 补齐到23字节
-		cmd = append(cmd, make([]byte, 23-len(cmd))...)
-	default:
-		return false
+	if percentage == 0 {
+		// 关闭显示屏
+		cmd = []byte{0x5A, 0xA5, 0x47, 0x0D, 0x1C, 0x00, 0xFF}
+	} else {
+		// 亮度 1-100% 线性映射到 0x01-0xFF
+		val := 1 + percentage*254/100
+		chk := (0x5A + 0xA5 + 0x43 + 0x03 + val + 1) & 0xFF
+		cmd = []byte{0x5A, 0xA5, 0x43, 0x03, byte(val), byte(chk)}
 	}
+	// 补齐到23字节
+	cmd = append(cmd, make([]byte, 23-len(cmd))...)
 
 	_, err := m.device.Write(cmd)
 	if err != nil {
