@@ -1,10 +1,10 @@
 # BS2PRO-Controller (Linux Port)
 
-> 飞智空间站 BS 1/2/2PRO 的第三方替代控制器 - Linux 移植版
+> 飞智空间站 BS 2/2PRO 的第三方替代控制器 - Linux 移植版
 
-**⚠️ 注意：这是原 Windows 版本的 Linux 移植版，仍在积极开发中**
+**状态：BS2/BS2PRO USB HID 完全可用，BS1 BLE 待硬件验证**
 
-这是一个基于 Wails + Go + Next.js 开发的跨平台桌面应用，用于控制飞智空间站 BS 1/2/2PRO 散热器设备，提供风扇控制、温度监控等功能。
+基于 Wails v2.12 + Go + Next.js 16 开发的跨平台桌面应用，用于控制飞智 BS 2/2PRO 散热器设备，提供风扇控制、温度监控、智能控温等功能。
 
 ## 📢 项目声明
 
@@ -22,13 +22,16 @@
 - ✅ Linux 原生温度监控系统完成
 - ✅ Linux 系统集成完成（systemd, desktop, udev）
 - ✅ 构建系统和安装脚本完善
-- ✅ GUI 构建成功（Wails v2.12 + Next.js 16, 2026-04-28 验证）
-- ✅ 设备连接与数据监控正常（HID/USB 路径, 2026-04-25 硬件验证）
-- ✅ 前端 Linux 适配完成（文案修正、自启动迁移、设备选择 UI、连接进度, 2026-04-30）
-- ✅ Go 单元测试与 CI/CD 就绪（28 tests, GitHub Actions, 2026-04-30）
-- ❌ **HID 控制命令无效（P0 阻断）**：硬件不响应挡位/风扇/灯带控制命令
-- ❌ BLE 路径不可用：BS1 设备暂不支持 Linux（BlueZ 兼容性问题）
-- 📋 详细测试报告见 [docs/2026-04-29_test-report_gui-integration.md](docs/2026-04-29_test-report_gui-integration.md)
+- ✅ GUI 构建成功（Wails v2.12 + Next.js 16）
+- ✅ 设备连接与数据监控正常（HID/USB）
+- ✅ 前端 Linux 适配完成（文案、自启动、设备选择 UI、连接进度）
+- ✅ Go 单元测试与 CI/CD 就绪（28 tests, GitHub Actions）
+- ✅ **HID 控制命令已修复（2026-05-02）**：移除错误的 Report ID 前缀，挡位/风扇/灯带/亮度全部验证通过
+- ✅ **亮度支持 0-100% 中间值（2026-05-02）**
+- ✅ **GUI 完整功能验证通过**：风扇曲线、学习控温、快捷键、系统托盘
+- ❌ GPU 温度检测待修复
+- ❌ 灯光效果控制待适配（仅蓝灯呼吸模式正常）
+- ⚠️ BLE 路径待 BS1 硬件验证
 - 📋 开发计划见 [docs/NEXT-STEPS-PLAN.md](docs/NEXT-STEPS-PLAN.md)
 
 ## 功能特性
@@ -242,48 +245,59 @@ BS2PRO-Controller-Linux/
 
 ## 📊 硬件测试验证
 
-本项目已通过全面的硬件连接测试，验证了BS2设备在Linux下的完全支持：
+本项目已通过 BS2 (PID 0x1001) USB HID 完整硬件测试（2026-05-02）。
 
 ### ✅ 已验证的功能
-- **✅ 设备连接**：USB/HID枚举和识别
-- **✅ 双向通信**：命令发送和响应接收
-- **✅ 物理响应**：挡位灯控制和风扇转速变化
-- **✅ 实时监控**：风扇状态数据包读取
-- **✅ 权限持久**：udev规则配置持久生效
+- **✅ 设备连接**：USB/HID 枚举和识别（VID=0x37D7）
+- **✅ 双向通信**：控制命令发送和遥测数据接收
+- **✅ 挡位灯控制**：开关正常
+- **✅ 风扇转速控制**：实时 RPM 模式，遥测确认有效
+- **✅ 手动挡位切换**：静音/标准/强劲/超频
+- **✅ 亮度控制**：0-100% 全范围（10/30/60/90/100/3/0% 级别验证）
+- **✅ 智能启停 / 通电自启动**：设备回显确认
+- **✅ 风扇曲线与学习控温**：GUI 功能正常
+- **✅ 键盘快捷键**：正常
+- **✅ 权限持久**：udev 规则配置持久生效
 
-### 🔧 硬件测试脚本
-项目提供了完整的测试工具：
+### 🔧 测试工具
 ```
+# HID Report ID 诊断（排查控制命令问题）
+python3 test/test_cmd_report_id.py
+
+# Report Descriptor 查看
+python3 test/test_report_desc.py
+
 # 基础连接测试
 python3 test/test_bs2_connection.py
 
-# 自动功能测试
-python3 test/auto_test_bs2.py
-
-# 详细验证
-python3 test/detailed_verification.py
-
-# 重启验证脚本
-bash test/scripts/verify_after_reboot.sh
+# HID 设备检测
+python3 test/test_hid_detect.py
 ```
 
 ### 📁 测试文档
-- [Linux 移植手动测试报告（最新）](docs/2026-04-29_test-report_gui-integration.md)
+- [下一步计划与状态](docs/NEXT-STEPS-PLAN.md)（最新）
+- [Linux 移植手动测试报告](docs/2026-04-29_test-report_gui-integration.md)
 - [硬件测试完整报告](docs/2026-04-25_test-report_hardware-bs2.md)
-- [测试流程指南](docs/guide_hardware-test.md)
 
 ## ⚠️ 已知问题
 
-> 详见 [Linux 移植手动测试报告](docs/2026-04-29_test-report_gui-integration.md) (2026-04-29)
+> 最后更新: 2026-05-02 GUI 完整功能测试
 
 | # | 问题 | 严重级别 | 位置 |
 |---|------|---------|------|
-| 1 | HID 控制命令无效：硬件不响应挡位/风扇/灯带控制 | **P0 阻断** | `internal/device/device.go` |
-| 2 | BLE 在 Linux 上不可用（BS1 设备） | P1 | `internal/device/ble.go` |
-| 3 | UI 文案仅提及"蓝牙"，缺少 USB 有线连接指引 | P1 | `DeviceStatus.tsx:255,336` |
-| 4 | 亮度控制仅支持二值（0%/100%） | P2 | `device.go:753-764` |
-| 5 | 缺少设备类型选择 UI（USB vs BLE） | P2 | `DeviceStatus.tsx` |
-| 6 | Windows 自启动引用残留 | P3 | `ControlPanel.tsx:394-400` |
+| 1 | GPU 温度检测不工作 | **P1** | `internal/temperature/` |
+| 2 | 灯光效果模式切换失败（仅蓝灯呼吸模式正常） | **P1** | `internal/device/rgb.go` |
+| 3 | 开机自启动状态待验证（调试面板显示 false） | P2 | `internal/autostart/` |
+| 4 | 关于/更新页面仍为原作者内容 | P3 | 前端 |
+| 5 | BLE 不支持（BS1 硬件不可用） | P1 | `internal/device/ble.go` |
+
+### 已修复
+| # | 问题 | 修复日期 |
+|---|------|---------|
+| 1 | HID 控制命令无效（移除错误 0x02 Report ID 前缀） | 2026-05-02 |
+| 2 | 亮度仅支持 0%/100% 二值 | 2026-05-02 |
+| 3 | UI 文案仅提及蓝牙 | 2026-04-30 |
+| 4 | Windows 自启动残留 | 2026-04-30 |
 
 ## 使用说明
 
